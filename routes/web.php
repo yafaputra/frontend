@@ -1,10 +1,14 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+Route::get('/{any}', function () {
+    return view('homepage'); // atau view utama Vue-mu
+})->where('homepage', '.*');
 Route::get('/', function () {
     return view('homepage');
 });
@@ -17,3 +21,6 @@ Route::get('/produk', function () {
 Route::get('/tentang', function () {
     return view('tentang'); // 
 });
+
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);

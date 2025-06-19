@@ -4,6 +4,7 @@ import laravel from 'laravel-vite-plugin';
 import path from 'path';
 
 export default defineConfig({
+  assetsInclude: ['**/*.png'],
   resolve: {
     alias: {
       'vue': 'vue/dist/vue.esm-bundler.js', // ✅ Ini penting

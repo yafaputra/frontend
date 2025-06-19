@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import HomePage from '../components/HomePage.vue';
-import Produk from '../components/Produk.vue';
-import Tentang from '../components/Tentang.vue';
+import HomePage from '../components/homepage/HomePage.vue';
+import Mentoring from '../components/Mentoring.vue';
+import Course from '../components/Course.vue';
+import Event from '../components/event/Event.vue';
 
 const routes = [
-  { path: '/', component: HomePage },
-  { path: '/produk', component: Produk },
-  { path: '/tentang', component: Tentang },
+  { path: '/',name: HomePage ,component: HomePage },
+  { path: '/Mentoring',name: Mentoring , component: Mentoring},
+  { path: '/Course',name: Course , component: Course},
+  { path: '/Event',name: Event , component: Event},
   // Tambah jika ada lainnya
 ];
 
