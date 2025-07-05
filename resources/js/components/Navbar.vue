@@ -2,7 +2,7 @@
   <header class="bg-[#564AB1] shadow-md fixed top-0 left-0 w-full z-50">
     <div class="container mx-auto flex items-center justify-between px-4 py-3">
       <router-link to="/" class="logo flex items-center">
-        <img src="/public/image/logo.png" alt="Logo" class="h-10" />
+        <img src="/public/image/logo.png" alt="Logo" class="h-6" />
       </router-link>
 
       <!-- Hamburger Icon -->
@@ -61,19 +61,14 @@ export default {
           icon: `<svg class="w-5 h-5 md:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m-4 0h4"></path></svg>`
         },
         {
-          text: 'Mentoring',
-          href: '/mentoring',
-          icon: `<svg class="w-5 h-5 md:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 01-8 0M12 14v7m-7-7a7 7 0 0114 0v7H5v-7z"></path></svg>`
-        },
-        {
           text: 'Course',
           href: '/course',
           icon: `<svg class="w-5 h-5 md:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M12 4v16m0 0H3"></path></svg>`
         },
         {
-          text: 'Event',
-          href: '/event',
-          icon: `<svg class="w-5 h-5 md:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h8M12 8v8"></path></svg>`
+          text: 'About Us',
+          href: '/about',
+          icon: `<svg class="w-5 h-5 md:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
         }
       ]
     };
