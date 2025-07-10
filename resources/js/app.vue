@@ -1,9 +1,10 @@
-<!-- App.vue -->
 <template>
   <div>
-    <Navbar />
+    <Navbar v-if="!$route.meta.hideLayout" />
+
     <router-view />
-    <FooterBar />
+
+    <FooterBar v-if="!$route.meta.hideLayout" />
   </div>
 </template>
 
@@ -18,3 +19,7 @@ export default {
   }
 };
 </script>
+
+<style>
+/* Gaya global atau lainnya */
+</style>

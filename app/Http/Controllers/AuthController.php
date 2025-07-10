@@ -11,34 +11,60 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $validate = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
-        if ($validate->fails()) {
-            return response()->json(['errors' => $validate->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password)
+            'password' => Hash::make($request->password),
         ]);
 
-        return response()->json(['message' => 'User registered successfully']);
-    }
+        // Generate token untuk pengguna yang baru terdaftar
+        $token = $user->createToken('auth_token')->plainTextToken;
 
+        return response()->json([
+            'message' => 'User registered successfully',
+            'token' => $token, // Tambahkan token di respons register
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ] // Kembalikan data user yang relevan
+        ], 201);
+    }
 
     public function login(Request $request)
     {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        return response()->json(['message' => 'Login success', 'user' => $user]);
+        // Generate token dengan Sanctum
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ] // Kembalikan data user yang relevan
+        ]);
     }
 }

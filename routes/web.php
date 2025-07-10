@@ -25,3 +25,8 @@ Route::get('/{any}', function () {
 // Auth (kalau ini ditujukan untuk frontend, lebih baik dipindah ke api.php)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+
+Route::get('/adminlte', function () {
+    return view('adminlte'); // atau nama view lainnya
+});

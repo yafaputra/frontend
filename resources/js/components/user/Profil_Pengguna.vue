@@ -1,6 +1,6 @@
 <template>
   <section class="bg-gray-50 min-h-screen text-gray-800 font-sans">
-    <div class="max-w-4xl mx-auto px-8 pt-18 pb-16"> 
+    <div class="max-w-4xl mx-auto px-8 pt-18 pb-16">
 
       <div class="mb-14">
         <h1 class="text-4xl lg:text-5xl font-bold text-purple-800 leading-tight">Profil Pengguna</h1>
@@ -31,28 +31,28 @@
           <input type="text" id="fullname" name="fullname"
                  v-model="formData.fullname"
                  class="form-input-custom" required>
-                 </div>
+        </div>
 
         <div>
           <label class="block text-lg font-semibold text-gray-700 mb-3" for="username">Username</label>
           <input type="text" id="username" name="username"
                  v-model="formData.username"
                  class="form-input-custom">
-                 </div>
+        </div>
 
         <div>
           <label class="block text-lg font-semibold text-gray-700 mb-3" for="dob">Tanggal Lahir</label>
           <input type="date" id="dob" name="dob"
                  v-model="formData.dob"
                  class="form-input-custom">
-                 </div>
+        </div>
 
         <div>
           <label class="block text-lg font-semibold text-gray-700 mb-3" for="email">Email</label>
           <input type="email" id="email" name="email"
                  v-model="formData.email"
                  class="form-input-custom" required>
-                 </div>
+        </div>
 
         <div>
           <label class="block text-lg font-semibold text-gray-700 mb-3" for="bio">Bio</label>
@@ -60,7 +60,7 @@
                     v-model="formData.bio"
                     class="form-input-custom"
                     placeholder="Ceritain sedikit tentang dirimu..."></textarea>
-                    </div>
+        </div>
 
         <div>
           <label class="block text-lg font-semibold text-gray-700 mb-3">Hobi / Interest</label>
@@ -75,11 +75,17 @@
         <div class="mb-8">
           <label class="block text-lg font-semibold text-gray-700 mb-3">Badge Koleksi</label>
           <div class="flex flex-wrap gap-4 mt-2">
-            <span class="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-base flex items-center gap-1 badge-animate">🔥 Aktif</span>
-            <span class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-base flex items-center gap-1">💡 Fast Learner</span>
-            <span class="bg-yellow-100 text-yellow-700 px-4 py-1.5 rounded-full text-base flex items-center gap-1">🏆 Top 3</span>
+            <span v-for="badge in formData.badges" :key="badge"
+                  :class="getBadgeClass(badge)"
+                  class="px-4 py-1.5 rounded-full text-base flex items-center gap-1">
+                  {{ badge }}
+            </span>
+            <span v-if="!formData.badges || formData.badges.length === 0" class="bg-gray-200 text-gray-700 px-4 py-1.5 rounded-full text-base flex items-center gap-1">
+              ✨ Belum ada Badge
+            </span>
           </div>
         </div>
+
 
         <div class="mb-8">
           <label class="block text-lg font-semibold text-gray-700 mb-3">Level Kamu</label>
@@ -96,7 +102,7 @@
         <p class="text-lg text-purple-700 mb-8 italic">"{{ randomMotivasi }}"</p>
 
         <div class="flex justify-between items-center pt-6">
-          <a href="/dashboard" class="text-purple-700 hover:underline text-lg font-medium">← Kembali ke Dashboard</a>
+          <router-link to="/dashboard" class="text-purple-700 hover:underline text-lg font-medium">← Kembali ke Dashboard</router-link>
           <button type="submit"
                   :disabled="isSaving"
                   class="bg-purple-800 text-white font-bold px-8 py-3.5 rounded-lg hover:bg-purple-900 transition flex items-center gap-3 text-lg">
@@ -112,11 +118,11 @@
             </span>
           </button>
         </div>
-        
+
         <div v-if="successMessage" class="mt-6 p-5 bg-green-100 text-green-700 rounded-lg text-lg">
           ✅ {{ successMessage }}
         </div>
-        
+
         <div v-if="errorMessage" class="mt-6 p-5 bg-red-100 text-red-700 rounded-lg text-lg">
           ❌ {{ errorMessage }}
         </div>
@@ -127,41 +133,27 @@
 </template>
 
 <script>
-// (Bagian script tidak ada perubahan)
+import axios from 'axios';
+
 export default {
-  props: {
-    initialProfile: {
-      type: Object,
-      default: () => ({})
-    },
-    initialUser: {
-      type: Object,
-      default: () => ({})
-    },
-    updateRoute: {
-      type: String,
-      required: true,
-      default: '/profile/update'
-    },
-    defaultAvatarPath: {
-      type: String,
-      default: '/image/hajisodikin.jpg'
-    }
-  },
+  // initialProfile dan initialUser sekarang tidak diperlukan sebagai props jika data dimuat dari API
+  // props: { ... },
   data() {
     return {
       formData: {
-        fullname: this.initialProfile.fullname || this.initialUser.name || '',
-        username: this.initialProfile.username || '',
-        dob: this.initialProfile.dob || '',
-        email: this.initialProfile.email || this.initialUser.email || '',
-        bio: this.initialProfile.bio || 'Coding enthusiast & Error lover 💀',
-        hobbies: this.initialProfile.hobbies ? JSON.parse(this.initialProfile.hobbies) : ['Ngoding', 'Gaming', 'Ngonten'],
-        avatar: null,
-        level: this.initialProfile.level ?? 3,
-        progress: this.initialProfile.progress ?? 60,
+        fullname: '',
+        username: '',
+        dob: '',
+        email: '',
+        bio: '',
+        hobbies: [],
+        avatar: null, // File object for new avatar
+        level: 1,
+        progress: 0,
+        badges: [],
       },
-      currentAvatarPreviewUrl: this.initialProfile.avatar ? `/storage/${this.initialProfile.avatar}` : this.defaultAvatarPath,
+      currentAvatarPreviewUrl: '/image/hajisodikin.jpg', // Default avatar path
+      userCreatedAt: null, // Untuk menyimpan created_at dari user
       isSaving: false,
       successMessage: '',
       errorMessage: '',
@@ -182,10 +174,10 @@ export default {
   },
   computed: {
     userCreatedAtYear() {
-      if (this.initialUser.created_at) {
-        return new Date(this.initialUser.created_at).getFullYear();
+      if (this.userCreatedAt) {
+        return new Date(this.userCreatedAt).getFullYear();
       }
-      return new Date().getFullYear();
+      return new Date().getFullYear(); // Fallback jika tidak ada data
     },
     randomMotivasi() {
       const randomIndex = Math.floor(Math.random() * this.motivasi.length);
@@ -195,7 +187,59 @@ export default {
         return this.currentAvatarPreviewUrl;
     }
   },
+  created() {
+    this.fetchProfileData();
+  },
   methods: {
+    async fetchProfileData() {
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          this.errorMessage = 'Anda belum login. Silakan login terlebih dahulu.';
+          this.$router.push('/login'); // Arahkan ke halaman login
+          return;
+        }
+
+        const response = await axios.get('http://localhost:8000/api/profile', {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+
+        const { user, profile } = response.data;
+
+        // Populate formData from fetched data
+        this.formData.fullname = profile.fullname || user.name;
+        this.formData.username = profile.username || '';
+        this.formData.dob = profile.dob || '';
+        this.formData.email = profile.email || user.email;
+        this.formData.bio = profile.bio || 'Coding enthusiast & Error lover 💀';
+        this.formData.hobbies = profile.hobbies || []; // Hobbies should be an array
+        this.formData.level = profile.level ?? 3; // Use nullish coalescing for default
+        this.formData.progress = profile.progress ?? 60; // Use nullish coalescing for default
+        this.formData.badges = profile.badges || []; // Badges should be an array
+
+        // Set avatar URL
+        if (profile.avatar) {
+          this.currentAvatarPreviewUrl = `http://localhost:8000/storage/${profile.avatar}`;
+        } else {
+          this.currentAvatarPreviewUrl = '/image/hajisodikin.jpg'; // Default if no avatar
+        }
+
+        // Set user created at for displaying "Aktif belajar sejak"
+        this.userCreatedAt = user.created_at;
+
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+        this.errorMessage = error.response?.data?.message || 'Gagal memuat data profil.';
+        // Handle unauthorized or other errors, maybe redirect to login
+        if (error.response?.status === 401) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            this.$router.push('/login');
+        }
+      }
+    },
     handleAvatarChange(event) {
       const file = event.target.files[0];
       if (file) {
@@ -207,7 +251,8 @@ export default {
         reader.readAsDataURL(file);
       } else {
         this.formData.avatar = null;
-        this.currentAvatarPreviewUrl = this.initialProfile.avatar ? `/storage/${this.initialProfile.avatar}` : this.defaultAvatarPath;
+        // Revert to original avatar if available, otherwise default
+        this.currentAvatarPreviewUrl = this.formData.avatar_original_url || '/image/hajisodikin.jpg';
       }
     },
     async submitProfile() {
@@ -216,54 +261,103 @@ export default {
       this.errorMessage = '';
 
       const dataToSubmit = new FormData();
+      // Append all form data
       for (const key in this.formData) {
-        if (key === 'hobbies') {
+        // Handle hobbies array specifically
+        if (key === 'hobbies' && Array.isArray(this.formData.hobbies)) {
           this.formData.hobbies.forEach(hobby => {
             dataToSubmit.append('hobbies[]', hobby);
           });
-        } else if (key === 'avatar' && this.formData.avatar) {
+        }
+        // Handle avatar file
+        else if (key === 'avatar' && this.formData.avatar instanceof File) {
           dataToSubmit.append(key, this.formData.avatar);
-        } else if (this.formData[key] !== null && this.formData[key] !== undefined) {
+        }
+        // Handle other non-null/undefined fields
+        else if (this.formData[key] !== null && this.formData[key] !== undefined && key !== 'badges') {
           dataToSubmit.append(key, this.formData[key]);
         }
       }
       dataToSubmit.append('_method', 'PUT'); // Laravel method spoofing
 
       try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          this.errorMessage = 'Autentikasi diperlukan untuk menyimpan perubahan.';
+          this.$router.push('/login');
+          return;
+        }
 
-        const response = await fetch(this.updateRoute, {
-          method: 'POST',
-          body: dataToSubmit,
+        const response = await axios.post('http://localhost:8000/api/profile/update', dataToSubmit, {
           headers: {
-            'X-CSRF-TOKEN': csrfToken,
-            'Accept': 'application/json'
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'multipart/form-data' // Penting untuk file upload
           }
         });
 
-        const responseData = await response.json();
-
-        if (response.ok) {
-          this.successMessage = responseData.message || 'Data berhasil disimpan!';
-          if (responseData.avatar_url) {
-            this.currentAvatarPreviewUrl = responseData.avatar_url;
-            this.$emit('profileUpdated', responseData.profile);
-          }
-        } else {
-          this.errorMessage = responseData.message || 'Terjadi kesalahan saat menyimpan data.';
-          if (responseData.errors) {
-            console.error('Validation errors:', responseData.errors);
-          }
+        this.successMessage = response.data.message || 'Data berhasil disimpan!';
+        // Update avatar preview if new avatar was uploaded
+        if (response.data.avatar_url) {
+          this.currentAvatarPreviewUrl = response.data.avatar_url;
         }
+
+        // Optionally, update local user data if name or email changed
+        const currentUserData = JSON.parse(localStorage.getItem('user'));
+        if (currentUserData) {
+            currentUserData.name = this.formData.fullname;
+            currentUserData.email = this.formData.email;
+            localStorage.setItem('user', JSON.stringify(currentUserData));
+            // Trigger Navbar update
+            window.dispatchEvent(new Event('localStorageUpdated'));
+        }
+
+        // Update formData with potentially updated profile data from backend response
+        // This is good practice to ensure UI is in sync with backend state
+        this.formData.fullname = response.data.profile.fullname;
+        this.formData.username = response.data.profile.username;
+        this.formData.email = response.data.profile.email;
+        this.formData.bio = response.data.profile.bio;
+        this.formData.hobbies = response.data.profile.hobbies;
+        this.formData.level = response.data.profile.level;
+        this.formData.progress = response.data.profile.progress;
+        this.formData.badges = response.data.profile.badges; // Update badges from backend
+
       } catch (error) {
         console.error('Error submitting profile:', error);
-        this.errorMessage = 'Terjadi kesalahan jaringan atau server.';
+        if (error.response?.data?.errors) {
+          // Display validation errors
+          const errors = error.response.data.errors;
+          this.errorMessage = Object.values(errors).flat().join('<br>');
+        } else {
+          this.errorMessage = error.response?.data?.message || 'Terjadi kesalahan saat menyimpan data.';
+        }
+        if (error.response?.status === 401) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            this.$router.push('/login');
+        }
       } finally {
         this.isSaving = false;
         setTimeout(() => {
           this.successMessage = '';
           this.errorMessage = '';
         }, 3000);
+      }
+    },
+    getBadgeClass(badgeName) {
+      // Fungsi untuk memberikan kelas Tailwind CSS berdasarkan nama badge
+      // Anda bisa kembangkan ini sesuai dengan badge yang Anda miliki
+      switch (badgeName) {
+        case 'Aktif':
+          return 'bg-green-100 text-green-700 badge-animate';
+        case 'Fast Learner':
+          return 'bg-blue-100 text-blue-700';
+        case 'Top 3':
+          return 'bg-yellow-100 text-yellow-700';
+        case 'Gen Z Squad 🦄': // Badge default
+          return 'bg-yellow-200 text-yellow-800 badge-animate';
+        default:
+          return 'bg-gray-100 text-gray-700';
       }
     }
   }
@@ -303,7 +397,7 @@ export default {
   border-radius: 0.5rem; /* rounded-lg */
   outline: none; /* Hilangkan outline default browser */
   transition: all 0.2s ease-in-out; /* Transisi untuk efek halus */
-  
+
   /* Border default: ungu muda (purple-300) dan 1px */
   border: 1px solid #d8b4fe; /* Tailwind purple-300 */
 
@@ -311,10 +405,6 @@ export default {
   &:focus {
     border: 2px solid #9333ea; /* Tailwind purple-600 */
     box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.25); /* Optional: focus ring effect similar to focus:ring-2 */
-    /* Jika Anda ingin efek 'ring' bawaan Tailwind, Anda bisa juga tambahkan di sini */
-    /* box-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color); */
-    /* Atau lebih sederhana, jika ingin menjaga `focus:ring-2` dari Tailwind: */
-    /* Biarkan `focus:ring-2 focus:ring-purple-600` di class HTML dan hanya override `border` */
   }
 }
 

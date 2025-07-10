@@ -31,3 +31,5 @@ class CourseSeeder extends Seeder
         ]);
     }
 }
+
+
