@@ -12,6 +12,7 @@ import About from '../components/About.vue';
 import AdminLogin from '../components/admin/Login.vue'; // Ganti nama alias agar tidak konflik
 import UserLogin from '../components/auth/UserLogin.vue';
 import Register from '../components/auth/Register.vue';
+import UserTable from '../components/UserTable.vue';
 
 const routes = [
   { path: '/', name: 'HomePage', component: HomePage },
@@ -22,6 +23,7 @@ const routes = [
   { path: '/Dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/Reward', name: 'Reward', component: Reward },
   { path: '/About', name: 'About', component: About },
+  { path: '/UserTable', name: 'UserTable', component: UserTable },
 
   // Rute User Login dan Register
   { path: '/login', name: 'UserLogin', component: UserLogin ,     meta: { hideLayout: true } // Tambahkan ini

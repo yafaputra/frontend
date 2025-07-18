@@ -30,3 +30,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/adminlte', function () {
     return view('adminlte'); // atau nama view lainnya
 });
+
+
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::resource('users', UserController::class);
+});
