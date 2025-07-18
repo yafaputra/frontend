@@ -14,7 +14,6 @@
                         Siap upgrade skill hari ini? Yuk cek progres dan tantangan barumu!
                     </p>
                 </div>
-
             </div>
 
             <div class="grid md:grid-cols-3 gap-6 mb-10">
