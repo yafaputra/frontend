@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white min-h-screen pt-24">
+  <div class="bg-564AB1 min-h-screen pt-24">
     <div class="container mx-auto px-4 py-20 text-center max-w-3xl">
       <p class="text-sm uppercase text-purple-360 tracking-widest font-semibold text-white">Learning Ecosystem</p>
       <h1 class="text-4xl md:text-5xl font-bold leading-tight mt-2 mb-6 text-white">

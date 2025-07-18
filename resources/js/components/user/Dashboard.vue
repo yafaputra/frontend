@@ -14,68 +14,6 @@
                         Siap upgrade skill hari ini? Yuk cek progres dan tantangan barumu!
                     </p>
                 </div>
-
-                <div class="relative" @click.away="open = false">
-                    <button @click="open = !open"
-                        class="flex items-center bg-white rounded-full px-4 py-2 shadow-md hover:shadow-lg transition group focus:outline-none"
-                        :class="{ 'opacity-0 pointer-events-none': isScrolled, 'opacity-100': !isScrolled }">
-                        <img :src="avatarUrl" alt="Avatar"
-                            class="w-10 h-10 rounded-full border-2 border-purple-700 mr-2 animate-float">
-                        <span class="font-semibold text-purple-800 mr-1">{{ userName }}</span>
-                        <svg class="w-4 h-4 text-purple-700 group-hover:rotate-180 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    <transition enter-active-class="transition ease-out duration-200"
-                        enter-from-class="opacity-0 transform -translate-y-2"
-                        enter-to-class="opacity-100 transform translate-y-0"
-                        leave-active-class="transition ease-in duration-150"
-                        leave-from-class="opacity-100 transform translate-y-0"
-                        leave-to-class="opacity-0 transform -translate-y-2">
-                        <div v-show="open"
-                            class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl py-6 z-50 border">
-                            <div class="flex flex-col items-center mb-4">
-                                <img :src="avatarUrl" alt="Avatar"
-                                    class="w-14 h-14 rounded-full border-2 border-purple-700 mb-2">
-                                <span class="font-bold text-gray-800">{{ userName }}</span>
-                            </div>
-                            <hr class="my-2">
-                            <ul class="space-y-1 px-6 text-gray-700 text-sm">
-                                <li>
-                                    <a :href="routes.dashboard" class="flex items-center gap-2 py-2 hover:text-purple-700">
-                                        <span>🏠</span> My Dashboard
-                                    </a>
-                                </li>
-                                <li>
-                                    <a :href="routes.profileShow" class="flex items-center gap-2 py-2 hover:text-purple-700">
-                                        <span>🧑‍💼</span> Profile Saya
-                                    </a>
-                                </li>
-                                <li>
-                                    <a :href="routes.passwordChange" class="flex items-center gap-2 py-2 hover:text-purple-700">
-                                        <span>🔑</span> Ganti Password
-                                    </a>
-                                </li>
-                                <li>
-                                    <a :href="routes.reward" class="flex items-center gap-2 py-2 hover:text-purple-700">
-                                        <span>🎁</span> Reward Saya
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="https://wa.me/6281227026268" target="_blank"
-                                        class="flex items-center gap-2 py-2 hover:text-purple-700">
-                                        <span>📞</span> Hubungi Kami
-                                    </a>
-                                </li>
-                            </ul>
-                            <hr class="my-2">
-                            <a :href="routes.logout"
-                                class="block text-center text-red-600 font-bold py-2 hover:underline text-sm">Logout</a>
-                        </div>
-                    </transition>
-                </div>
             </div>
 
             <div class="grid md:grid-cols-3 gap-6 mb-10">

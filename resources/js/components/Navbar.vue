@@ -219,7 +219,7 @@ export default {
       this.isLoggedIn = false;
       this.userName = '';
       this.openDropdown = false;
-      this.$router.push('/login');
+      this.$router.push('/');
       window.dispatchEvent(new Event('localStorageUpdated'));
     }
   }
