@@ -9,7 +9,7 @@ import Dashboard from '../components/user/Dashboard.vue';
 import Reward from '../components/user/Reward.vue';
 import About from '../components/About.vue';
 
-import AdminLogin from '../components/admin/Login.vue'; // Ganti nama alias agar tidak konflik
+import AdminLogin from '../components/admin/Login.vue';
 import UserLogin from '../components/auth/UserLogin.vue';
 import Register from '../components/auth/Register.vue';
 import UserTable from '../components/UserTable.vue';
@@ -20,26 +20,43 @@ const routes = [
   { path: '/Course', name: 'Course', component: Course },
   { path: '/Course_Description', name: 'CourseDescription', component: Course_Description },
   { path: '/learnmore', name: 'LearnMore', component: LearnMore },
-  { path: '/Profil_Pengguna', name: 'ProfilPengguna', component: Profil_Pengguna },
-  { path: '/Dashboard', name: 'Dashboard', component: Dashboard },
-  { path: '/Reward', name: 'Reward', component: Reward },
   { path: '/About', name: 'About', component: About },
   { path: '/UserTable', name: 'UserTable', component: UserTable },
-  { path: '/course_content', name: 'CourseContent', component: course_content, meta: { hideLayout: true } }, // Tambahkan ini untuk menyembunyikan layout
 
   // Rute User Login dan Register
-  { path: '/login', name: 'UserLogin', component: UserLogin ,     meta: { hideLayout: true } // Tambahkan ini
-},
-  { path: '/register', name: 'Register', component: Register,      meta: { hideLayout: true } // Tambahkan ini
- },
+  { path: '/login', name: 'UserLogin', component: UserLogin, meta: { hideLayout: true } },
+  { path: '/register', name: 'Register', component: Register, meta: { hideLayout: true } },
 
   // Rute Admin Login
   { path: '/admin/login', name: 'AdminLogin', component: AdminLogin },
+
+  // --- RUTE YANG MEMBUTUHKAN LOGIN ---
+  { path: '/Profil_Pengguna', name: 'ProfilPengguna', component: Profil_Pengguna, meta: { requiresAuth: true } },
+  { path: '/Dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } },
+  { path: '/Reward', name: 'Reward', component: Reward, meta: { requiresAuth: true } },
+  { path: '/course_content', name: 'CourseContent', component: course_content, meta: { hideLayout: true, requiresAuth: true } },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+// Fungsi untuk memeriksa apakah token otentikasi ada di localStorage
+function isAuthenticated() {
+  return !!localStorage.getItem('auth_token'); // Ganti 'auth_token' jika nama token Anda berbeda
+}
+
+// Navigation Guard Global
+router.beforeEach((to, from, next) => {
+  // Cek apakah rute yang dituju memerlukan autentikasi dan user belum login
+  if (to.meta.requiresAuth && !isAuthenticated()) {
+    // Jika ya, alihkan ke halaman login
+    next({ name: 'UserLogin' });
+  } else {
+    // Jika tidak, lanjutkan navigasi
+    next();
+  }
 });
 
 export default router;

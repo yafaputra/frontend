@@ -4,17 +4,17 @@
       <div class="flex-1 space-y-6">
         <div>
           <h1 class="text-2xl font-bold text-[#3b3b98] mb-2">
-            {{ typeof courseDescription.title === 'string' ? courseDescription.title : 'No Title' }}
+            {{ courseData.title || 'No Title' }}
           </h1>
         </div>
         <div>
           <span class="inline-block text-[#5c4ac7] text-[18px] font-semibold px-2 py-[2px] rounded">
-            {{ typeof courseDescription.tag === 'string' ? courseDescription.tag : 'No Tag' }}
+            {{ courseData.tag || 'No Tag' }}
           </span>
         </div>
         <section class="border rounded-md p-4 text-[13px] max-w-9/10">
           <h3 class="text-[#3b3b98] font-semibold text-[15px] mb-2">Overview</h3>
-          <p class="text-[17px]" v-html="typeof courseDescription.overview === 'string' ? courseDescription.overview : 'No Overview'"></p>
+          <p class="text-[17px]" v-html="courseData.overview || 'No Overview'"></p>
         </section>
       </div>
       <aside class="w-full lg:w-[320px] flex-shrink-0 space-y-6">
@@ -26,28 +26,28 @@
           </div>
           <div class="w-full">
             <p class="text-[17px] font-semibold">
-              Rp {{ formatPrice(typeof courseDescription.price === 'number' ? courseDescription.price : 0) }}
+              Rp {{ formatPrice(courseData.price || 0) }}
             </p>
-            <p v-if="courseDescription.price_discount && typeof courseDescription.price_discount === 'number'" class="text-[14px] line-through text-[#9ca3af]">
-              Rp {{ formatPrice(courseDescription.price_discount) }}
+            <p v-if="courseData.price_discount" class="text-[14px] line-through text-[#9ca3af]">
+              Rp {{ formatPrice(courseData.price_discount) }}
             </p>
           </div>
           <button @click="buyCourse"
-                  :data-course-id="courseDescription.id"
+                  :data-course-id="courseData.id"
                   class="w-full bg-[#564AB1] text-white text-[15px] font-semibold py-3 rounded-lg">
             Beli Course
           </button>
         </div>
         <div class="border rounded-md p-4 flex items-center gap-4 text-[13px]">
           <img class="w-16 h-16 rounded-full object-cover" 
-               :src="getInstructorImageUrl(courseDescription.instructor_image_url)" 
+               :src="getInstructorImageUrl(courseData.instructor_image_url)" 
                alt="Instructor Image">
           <div class="flex flex-col">
             <span class="font-semibold text-[14px]">
-              {{ typeof courseDescription.instructor_name === 'string' ? courseDescription.instructor_name : 'No Name' }}
+              {{ courseData.instructor_name || 'No Name' }}
             </span>
             <span class="text-[#6b7280]">
-              {{ typeof courseDescription.instructor_position === 'string' ? courseDescription.instructor_position : 'No Position' }}
+              {{ courseData.instructor_position || 'No Position' }}
             </span>
           </div>
         </div>
@@ -56,14 +56,14 @@
           <ul class="space-y-2">
             <li class="flex items-center gap-2">
               <i class="far fa-file-video text-[#5c4ac7]"></i>
-              {{ courseDescription.video_count || 0 }} Video
+              {{ courseData.video_count || 0 }} Video
             </li>
             <li class="flex items-center gap-2">
               <i class="far fa-clock text-[#5c4ac7]"></i>
-              {{ courseDescription.duration || 0 }} Jam
+              {{ courseData.duration || 0 }} Jam
             </li>
-            <template v-if="courseDescription.features && courseDescription.features.length > 0">
-              <li v-for="(feature, index) in courseDescription.features" :key="index" class="flex items-center gap-2">
+            <template v-if="courseData.features && courseData.features.length > 0">
+              <li v-for="(feature, index) in courseData.features" :key="index" class="flex items-center gap-2">
                 <i class="far fa-check-circle text-[#5c4ac7]"></i>
                 {{ feature.value || '-' }}
               </li>
@@ -78,26 +78,12 @@
 <script>
 export default {
   props: {
-    courseDescription: {
-      type: Object,
-      required: true,
-      default: () => ({
-        id: null,
-        title: null,
-        tag: null,
-        overview: null,
-        image_url: null,
-        thumbnail: null,
-        price: 0,
-        price_discount: null,
-        instructor_name: null,
-        instructor_position: null,
-        instructor_image_url: null,
-        video_count: 0,
-        duration: 0,
-        features: []
-      })
+    // Menerima courseId dari Blade/Laravel untuk mengambil data
+    courseId: {
+      type: [String, Number], // Bisa string jika dari URL, atau Number
+      required: true
     },
+    // Midtrans Client Key tetap diterima sebagai prop
     midtransClientKey: {
       type: String,
       required: true
@@ -105,40 +91,41 @@ export default {
   },
   data() {
     return {
-      // Sample data for demonstration
-      courseDescription: {
-        id: 12345,
-        title: 'Complete Web Development Bootcamp 2025',
-        tag: 'Development',
-        overview: 'Learn to code and become a full-stack web developer with HTML, CSS, JavaScript, Node.js, Express, MongoDB, and more! This comprehensive bootcamp covers everything you need to know to build modern web applications from scratch.',
-        image_url: 'courses/web-dev-bootcamp.jpg', // Assuming this path exists in your storage
-        thumbnail: 'courses/web-dev-bootcamp-thumb.jpg',
-        price: 999000,
-        price_discount: 799000,
-        instructor_name: 'Angela Yu',
-        instructor_position: 'Lead Instructor at App Brewery',
-        instructor_image_url: 'instructors/angela-yu.jpg', // Assuming this path exists in your storage
-        video_count: 85,
-        duration: 45,
-        features: [
-          { value: 'Full Lifetime Access' },
-          { value: 'Certificate of Completion' },
-          { value: 'Downloadable Resources' }
-        ]
+      // Ini adalah tempat data kursus akan disimpan setelah di-fetch
+      courseData: {
+        id: null,
+        title: null,
+        tag: null,
+        overview: null,
+        image_url: null, // Ini akan dipetakan dari 'image' di model Course
+        price: 0,
+        price_discount: null,
+        instructor_name: null,
+        instructor_position: null,
+        instructor_image_url: null,
+        video_count: 0,
+        duration: 0,
+        features: [] // Ini sudah di-cast array di model CourseDescription
       },
-      midtransClientKey: 'YOUR_MIDTRANS_CLIENT_KEY' // Replace with your actual Midtrans Client Key (e.g., from .env)
+      loading: true, // Untuk indikator loading
+      error: null    // Untuk pesan error
     };
   },
   computed: {
     courseImageUrl() {
-      const path = this.courseDescription.image_url || this.courseDescription.thumbnail;
+      // Menggunakan this.courseData.image_url karena data ada di `data()`
+      const path = this.courseData.image_url;
       if (path) {
         return `/storage/${path}`;
       }
-      return '/images/default.jpg'; // Path default if no image
+      return '/images/default.jpg'; // Path default jika tidak ada gambar
     }
   },
-  mounted() {
+  async mounted() {
+    // Panggil method untuk mengambil data saat komponen dimuat
+    await this.fetchCourseData();
+
+    // Memuat script Midtrans setelah data kursus diambil (opsional, bisa juga di luar `mounted` jika sudah ada di Blade)
     if (typeof snap === 'undefined' && this.midtransClientKey) {
       const script = document.createElement('script');
       script.type = 'text/javascript';
@@ -148,38 +135,90 @@ export default {
       script.onload = () => {
         console.log('Midtrans Snap script loaded.');
       };
+      script.onerror = (e) => {
+        console.error('Failed to load Midtrans Snap script:', e);
+        alert('Gagal memuat script pembayaran. Mohon coba refresh halaman.');
+      };
     }
   },
   methods: {
     formatPrice(value) {
       if (value === null || value === undefined) return '0';
-      return new Intl.NumberFormat('id-ID').format(value);
+      return new Intl.NumberFormat('id-ID').format(Number(value));
     },
     getInstructorImageUrl(path) {
       if (path) {
         return `/storage/${path}`;
       }
-      return '/images/default-instructor.jpg'; // Default path if no instructor image
+      return '/images/default-instructor.jpg'; // Default path jika tidak ada gambar instruktur
     },
+    
+    // Method baru untuk mengambil data kursus dari API Laravel
+    async fetchCourseData() {
+      this.loading = true;
+      this.error = null; // Reset error state
+
+      try {
+        // Ganti '/api/courses' dengan endpoint API yang sesuai di Laravel kamu
+        // Misalnya, jika rute API kamu adalah `/api/course/{id}`
+        // Ini akan memanggil API Controller Laravel yang mengembalikan data Course + CourseDescription
+        const response = await fetch(`/api/course/${this.courseId}`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Gagal mengambil data kursus: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        // Asumsi struktur data JSON dari API sudah "diratakan"
+        // yaitu semua properti (dari Course dan CourseDescription) ada di level atas objek data
+        this.courseData = {
+          id: data.id,
+          title: data.title,
+          tag: data.tag,
+          overview: data.overview,
+          image_url: data.image_url, // Ini dari kolom 'image' di model Course
+          price: data.price,
+          price_discount: data.price_discount,
+          instructor_name: data.instructor_name,
+          instructor_position: data.instructor_position,
+          instructor_image_url: data.instructor_image_url,
+          video_count: data.video_count,
+          duration: data.duration,
+          features: data.features || [] // Pastikan fitur adalah array
+        };
+      } catch (error) {
+        console.error('Error fetching course data:', error);
+        this.error = 'Gagal memuat data kursus. Silakan coba lagi.';
+        alert(this.error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async buyCourse() {
-      if (!this.courseDescription.id) {
-        alert('Course ID tidak ditemukan.');
+      if (!this.courseData.id) {
+        alert('Course ID tidak ditemukan. Data kursus mungkin belum dimuat.');
         return;
       }
 
-      console.log('Button clicked, courseId:', this.courseDescription.id);
+      console.log('Button clicked, courseId:', this.courseData.id);
 
       try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')
-                               ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                               : '';
+                                  ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                  : '';
 
-        const response = await fetch(`/payment/${this.courseDescription.id}`, {
-          method: 'GET',
+        // Pastikan endpoint ini mengembalikan snapToken
+        // Umumnya, request pembayaran adalah POST
+        const response = await fetch(`/payment/${this.courseData.id}`, {
+          method: 'POST', 
           headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': csrfToken
-          }
+          },
+          // Jika ada data tambahan yang perlu dikirim ke backend untuk pembayaran, tambahkan di body:
+          // body: JSON.stringify({ /* data pembayaran tambahan */ })
         });
 
         if (!response.ok) {
@@ -194,17 +233,19 @@ export default {
           if (typeof snap !== 'undefined') {
             snap.pay(data.snapToken, {
               onSuccess: function(result) {
-                alert('Payment Success! Transaction ID: ' + result.transaction_id);
+                alert('Pembayaran Berhasil! ID Transaksi: ' + result.transaction_id);
                 console.log(result);
-                window.location.href = '/payment/success';
+                window.location.href = '/payment/success'; // Redirect ke halaman sukses
               },
               onPending: function(result) {
-                alert('Payment Pending! Transaction ID: ' + result.transaction_id);
+                alert('Pembayaran Tertunda! ID Transaksi: ' + result.transaction_id);
                 console.log(result);
+                // Pertimbangkan redirect ke halaman pending atau tetap di sini dengan pesan
               },
               onError: function(result) {
-                alert('Payment Failed! Error: ' + result.status_message);
+                alert('Pembayaran Gagal! Error: ' + result.status_message);
                 console.log(result);
+                // Pertimbangkan redirect ke halaman error atau tetap di sini dengan pesan
               },
               onClose: function() {
                 alert('Anda menutup popup pembayaran.');
@@ -212,14 +253,14 @@ export default {
             });
           } else {
             alert('Midtrans Snap script belum dimuat. Mohon refresh halaman.');
-            console.error('Midtrans Snap object is not defined.');
+            console.error('Objek Midtrans Snap tidak terdefinisi.');
           }
         } else {
-          console.error('No snapToken in response:', data);
+          console.error('Tidak ada snapToken dalam respons:', data);
           alert('Gagal mendapatkan token pembayaran. Silakan coba lagi.');
         }
       } catch (error) {
-        console.error('Error during payment process:', error);
+        console.error('Error selama proses pembayaran:', error);
         alert('Terjadi kesalahan saat memproses pembayaran: ' + error.message);
       }
     }
@@ -228,29 +269,5 @@ export default {
 </script>
 
 <style scoped>
-/* You can add custom component styles here if not fully using Tailwind */
-/* Ensure custom colors like #3b3b98, #5c4ac7, #564AB1, #9ca3af */
-/* are defined in your Tailwind configuration or directly in CSS */
-
-/* Example color definition in tailwind.config.js: */
-/*
-module.exports = {
-  theme: {
-    extend: {
-      colors: {
-        'dark-purple-text': '#3b3b98',
-        'light-purple-accent': '#5c4ac7',
-        'btn-bg-purple': '#564AB1',
-        'gray-line-through': '#9ca3af',
-        // ... other colors if any
-      }
-    }
-  }
-}
-*/
-
-/* Font Awesome (far fa-file-video, far fa-clock, far fa-check-circle)
-   needs to be imported globally in your Vue project.
-   Example: in index.html or via an npm package like vue-fontawesome.
-*/
+/* Gaya CSS tetap sama */
 </style>
