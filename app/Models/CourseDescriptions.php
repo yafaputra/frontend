@@ -33,13 +33,11 @@ class CourseDescriptions extends Model
         'price_discount' => 'decimal:2',
     ];
 
-    // Relasi ke Course
     public function course()
     {
         return $this->hasOne(Course::class, 'course_description_id');
     }
 
-    // Event untuk auto-create/update course ketika course_description diubah
     protected static function booted()
     {
         static::created(function ($courseDescription) {

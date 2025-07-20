@@ -18,7 +18,7 @@ import course_content from '../components/course_content/course_content.vue';
 const routes = [
   { path: '/', name: 'HomePage', component: HomePage },
   { path: '/Course', name: 'Course', component: Course },
-  { path: '/Course_Description', name: 'CourseDescription', component: Course_Description },
+  { path: '/Course_Description/:id', name: 'CourseDescription', component: Course_Description },
   { path: '/learnmore', name: 'LearnMore', component: LearnMore },
   { path: '/About', name: 'About', component: About },
   { path: '/UserTable', name: 'UserTable', component: UserTable },

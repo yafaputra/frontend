@@ -2,46 +2,45 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\CourseResource\Pages;
-use App\Models\Course;
+use App\Filament\Resources\CourseDescriptionResource\Pages; // Sesuaikan namespace
+use App\Models\CourseDescriptions; // Gunakan model CourseDescriptions
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class CourseResource extends Resource
+class CourseDescriptionResource extends Resource // Ubah nama kelas
 {
-    protected static ?string $model = Course::class;
+    protected static ?string $model = CourseDescriptions::class; // Arahkan ke CourseDescriptions
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationLabel = 'Descriptions'; // Label menu
+    protected static ?int $navigationSort = 2; // Urutan menu
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                // Perhatikan penggunaan 'description.nama_kolom' di semua field.
-                // Ini memberitahu Filament untuk menyimpan data ke relasi 'description' (model CourseDescriptions)
-                
                 Forms\Components\Section::make('Course Information')
                     ->schema([
-                        Forms\Components\TextInput::make('description.title')
+                        Forms\Components\TextInput::make('title') // Langsung ke kolom di CourseDescriptions
                             ->label('Title')
                             ->required()
                             ->maxLength(255),
-                        Forms\Components\TextInput::make('description.tag')
+                        Forms\Components\TextInput::make('tag') // Langsung ke kolom di CourseDescriptions
                             ->label('Category / Tag')
                             ->required()
                             ->maxLength(255),
-                        Forms\Components\RichEditor::make('description.overview')
+                        Forms\Components\RichEditor::make('overview') // Langsung ke kolom di CourseDescriptions
                             ->label('Overview')
                             ->required()
                             ->columnSpanFull(),
-                        Forms\Components\FileUpload::make('description.image_url')
+                        Forms\Components\FileUpload::make('image_url') // Langsung ke kolom di CourseDescriptions
                             ->label('Cover Image')
                             ->image()
                             ->directory('course-covers'),
-                        Forms\Components\FileUpload::make('description.thumbnail')
+                        Forms\Components\FileUpload::make('thumbnail') // Langsung ke kolom di CourseDescriptions
                             ->label('Thumbnail')
                             ->image()
                             ->directory('course-thumbnails'),
@@ -49,12 +48,12 @@ class CourseResource extends Resource
 
                 Forms\Components\Section::make('Pricing')
                     ->schema([
-                        Forms\Components\TextInput::make('description.price')
+                        Forms\Components\TextInput::make('price') // Langsung ke kolom di CourseDescriptions
                             ->label('Price')
                             ->required()
                             ->numeric()
                             ->prefix('Rp'),
-                        Forms\Components\TextInput::make('description.price_discount')
+                        Forms\Components\TextInput::make('price_discount') // Langsung ke kolom di CourseDescriptions
                             ->label('Discounted Price')
                             ->numeric()
                             ->prefix('Rp'),
@@ -62,13 +61,13 @@ class CourseResource extends Resource
 
                 Forms\Components\Section::make('Instructor')
                     ->schema([
-                        Forms\Components\TextInput::make('description.instructor_name')
+                        Forms\Components\TextInput::make('instructor_name') // Langsung ke kolom di CourseDescriptions
                             ->label('Instructor Name')
                             ->required(),
-                        Forms\Components\TextInput::make('description.instructor_position')
+                        Forms\Components\TextInput::make('instructor_position') // Langsung ke kolom di CourseDescriptions
                             ->label('Instructor Position')
                             ->required(),
-                        Forms\Components\FileUpload::make('description.instructor_image_url')
+                        Forms\Components\FileUpload::make('instructor_image_url') // Langsung ke kolom di CourseDescriptions
                             ->label('Instructor Photo')
                             ->image()
                             ->directory('instructors'),
@@ -76,13 +75,13 @@ class CourseResource extends Resource
 
                 Forms\Components\Section::make('Details')
                     ->schema([
-                        Forms\Components\TextInput::make('description.video_count')
+                        Forms\Components\TextInput::make('video_count') // Langsung ke kolom di CourseDescriptions
                             ->label('Video Count')
                             ->numeric(),
-                        Forms\Components\TextInput::make('description.duration')
+                        Forms\Components\TextInput::make('duration') // Langsung ke kolom di CourseDescriptions
                             ->label('Duration')
                             ->placeholder('e.g., 10h 30m'),
-                        Forms\Components\Repeater::make('description.features')
+                        Forms\Components\Repeater::make('features') // Langsung ke kolom di CourseDescriptions
                             ->label('Features')
                             ->schema([
                                 Forms\Components\TextInput::make('feature_name')->required(),
@@ -94,19 +93,21 @@ class CourseResource extends Resource
 
     public static function table(Table $table): Table
     {
-        // Bagian tabel menampilkan data dari model Course (hasil sinkronisasi)
+        // Tampilkan data dari CourseDescriptions
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('image')
+                Tables\Columns\ImageColumn::make('thumbnail')
                     ->label('Thumbnail'),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('instructor'),
+                Tables\Columns\TextColumn::make('instructor_name')
+                    ->label('Instructor'),
                 Tables\Columns\TextColumn::make('price')
                     ->money('IDR')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('category'),
+                Tables\Columns\TextColumn::make('tag')
+                    ->label('Category'),
             ])
             ->filters([
                 //
@@ -132,9 +133,9 @@ class CourseResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListCourses::route('/'),
-            'create' => Pages\CreateCourse::route('/create'),
-            'edit' => Pages\EditCourse::route('/{record}/edit'),
+            'index' => Pages\ListCourseDescriptions::route('/'), // Sesuaikan nama halaman
+            'create' => Pages\CreateCourseDescription::route('/create'), // Sesuaikan nama halaman
+            'edit' => Pages\EditCourseDescription::route('/{record}/edit'), // Sesuaikan nama halaman
         ];
     }
 }

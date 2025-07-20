@@ -1,12 +1,16 @@
 <?php
 
-namespace App\Filament\Resources\CourseResource\Pages;
+namespace App\Filament\Resources\CourseDescriptionResource\Pages; // Sesuaikan namespace
 
-use App\Filament\Resources\CourseResource;
-use Filament\Actions;
+use App\Filament\Resources\CourseDescriptionResource; // Sesuaikan resource
 use Filament\Resources\Pages\CreateRecord;
 
-class CreateCourse extends CreateRecord
+class CreateCourseDescription extends CreateRecord // Sesuaikan nama kelas
 {
-    protected static string $resource = CourseResource::class;
+    protected static string $resource = CourseDescriptionResource::class; // Sesuaikan resource
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

@@ -6,29 +6,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
-        Schema::create('course_description', function (Blueprint $table) {
+        Schema::create('courses', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->string('tag')->nullable();
-            $table->text('overview');
-            $table->string('image_url')->nullable();
-            $table->string('thumbnail')->nullable();
-            $table->decimal('price', 10, 2);
-            $table->decimal('price_discount', 10, 2)->nullable();
-            $table->string('instructor_name')->nullable();
-            $table->string('instructor_position')->nullable();
-            $table->string('instructor_image_url')->nullable();
-            $table->integer('video_count')->default(0);
-            $table->integer('duration')->default(0);
-            $table->json('features')->nullable();
+            // Tambahkan kolom foreign key
+            $table->foreignId('course_description_id')->constrained('course_description')->onDelete('cascade');
+
+            $table->string('title')->nullable();
+            $table->string('instructor')->nullable();
+            $table->string('duration')->nullable();
+            $table->decimal('original_price', 10, 2)->nullable(); // Ubah ke decimal
+            $table->decimal('price', 10, 2)->nullable(); // Ubah ke decimal
+            $table->string('image')->nullable();
+            $table->string('category')->nullable();
             $table->timestamps();
         });
     }
 
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('course_description');
+        Schema::dropIfExists('courses');
     }
 };

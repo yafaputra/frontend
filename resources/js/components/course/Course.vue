@@ -75,7 +75,7 @@
     </section>
 
     <!-- Course Section -->
-    <section id="courses" ref="coursesSection" class="py-16 sm:py-20 px-4 sm:px-6 bg-gray-50">
+    <section id="courses" ref="coursesSection" class="py-16 sm:py-20 px-4 sm:px-6 bg-white">
       <div class="container mx-auto">
         <!-- Section Header -->
         <div class="text-center mb-12 sm:mb-16">
@@ -91,132 +91,167 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
-          <!-- Sidebar Kategori -->
+          <!-- Enhanced Category Sidebar - Removed logo and reduced spacing -->
           <div class="lg:col-span-1 mb-6 lg:mb-0">
-            <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg border border-gray-100 lg:sticky lg:top-6">
-              <h3 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-gray-900 flex items-center">
-                <span class="bg-gradient-to-r from-[#564AB1] to-[#8B7CF6] w-2 h-6 sm:h-8 rounded-full mr-3"></span>
-                Filter Kategori
+            <div class="bg-gradient-to-br from-white to-gray-50/50 rounded-3xl p-4 shadow-xl border border-gray-100/50 backdrop-blur-sm lg:sticky lg:top-6">
+              <!-- Simplified Header -->
+              <h3 class="text-xl font-bold text-gray-900 mb-4 text-center bg-gradient-to-r from-[#564AB1] to-[#8B7CF6] bg-clip-text text-transparent">
+                Kategori
               </h3>
-              <div class="space-y-2 sm:space-y-3">
-                <label class="flex items-center p-2 sm:p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-all duration-200 group">
-                  <input
-                    type="radio"
-                    name="kategori"
-                    value="Web Programming"
-                    v-model="selectedCategory"
-                    class="sr-only"
-                  />
-                  <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-300 group-hover:border-[#564AB1] transition-colors duration-200 flex items-center justify-center mr-3">
-                    <div class="w-2 h-2 rounded-full bg-[#564AB1] opacity-0 group-hover:opacity-100 transition-opacity duration-200" :class="{'!opacity-100': selectedCategory === 'Web Programming'}"></div>
-                  </div>
-                  <span class="text-gray-700 font-medium text-sm sm:text-base">Web Programming</span>
-                </label>
 
-                <label class="flex items-center p-2 sm:p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-all duration-200 group">
-                  <input
-                    type="radio"
-                    name="kategori"
-                    value="Fullstack Development"
-                    v-model="selectedCategory"
-                    class="sr-only"
-                  />
-                  <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-300 group-hover:border-[#564AB1] transition-colors duration-200 flex items-center justify-center mr-3">
-                    <div class="w-2 h-2 rounded-full bg-[#564AB1] opacity-0 group-hover:opacity-100 transition-opacity duration-200" :class="{'!opacity-100': selectedCategory === 'Fullstack Development'}"></div>
+              <!-- Category Pills -->
+              <div class="space-y-2">
+                <button
+                  v-for="category in categories"
+                  :key="category.id"
+                  @click="selectCategory(category.name)"
+                  :class="[
+                    'w-full p-3 rounded-2xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 flex items-center group shadow-sm border',
+                    selectedCategory === category.name
+                      ? 'bg-gradient-to-r from-[#564AB1] to-[#8B7CF6] text-white shadow-lg shadow-purple-200/50 border-transparent'
+                      : 'bg-white hover:bg-gray-50 text-gray-700 hover:text-[#564AB1] border-gray-200 hover:border-[#564AB1]/30 hover:shadow-md'
+                  ]"
+                >
+                  <div class="flex items-center">
+                    <div :class="[
+                      'w-2 h-2 rounded-full mr-3 transition-all duration-300',
+                      selectedCategory === category.name ? 'bg-white' : 'bg-[#564AB1]'
+                    ]"></div>
+                    <span>{{ category.name }}</span>
                   </div>
-                  <span class="text-gray-700 font-medium text-sm sm:text-base">Fullstack Development</span>
-                </label>
-
-                <label class="flex items-center p-2 sm:p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-all duration-200 group">
-                  <input
-                    type="radio"
-                    name="kategori"
-                    value="Backend Development"
-                    v-model="selectedCategory"
-                    class="sr-only"
-                  />
-                  <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-300 group-hover:border-[#564AB1] transition-colors duration-200 flex items-center justify-center mr-3">
-                    <div class="w-2 h-2 rounded-full bg-[#564AB1] opacity-0 group-hover:opacity-100 transition-opacity duration-200" :class="{'!opacity-100': selectedCategory === 'Backend Development'}"></div>
-                  </div>
-                  <span class="text-gray-700 font-medium text-sm sm:text-base">Backend Development</span>
-                </label>
-
-                <label class="flex items-center p-2 sm:p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-all duration-200 group">
-                  <input
-                    type="radio"
-                    name="kategori"
-                    value="UI/UX"
-                    v-model="selectedCategory"
-                    class="sr-only"
-                  />
-                  <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-300 group-hover:border-[#564AB1] transition-colors duration-200 flex items-center justify-center mr-3">
-                    <div class="w-2 h-2 rounded-full bg-[#564AB1] opacity-0 group-hover:opacity-100 transition-opacity duration-200" :class="{'!opacity-100': selectedCategory === 'UI/UX'}"></div>
-                  </div>
-                  <span class="text-gray-700 font-medium text-sm sm:text-base">UI/UX Design</span>
-                </label>
+                </button>
               </div>
             </div>
           </div>
 
           <!-- Course Cards -->
           <div class="lg:col-span-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+            <!-- Loading Animation -->
+            <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              <div v-for="i in 6" :key="i" class="bg-white rounded-xl shadow-lg overflow-hidden animate-pulse border-2 border-gray-200">
+                <div class="h-40 bg-gray-200"></div>
+                <div class="p-4 border-t border-gray-100">
+                  <div class="h-4 bg-gray-200 rounded mb-3"></div>
+                  <div class="h-3 bg-gray-200 rounded mb-2"></div>
+                  <div class="h-3 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Course Grid -->
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               <router-link
                 v-for="(course, index) in filteredCourses"
                 :key="course.id"
                 :to="`/Course_Description/${course.id}`"
-                class="group block bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-[#564AB1]/20 transform hover:scale-105"
+                class="group block bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border-2 border-gray-200 hover:border-[#564AB1]/40 transform hover:scale-[1.02]"
+                :style="{ animationDelay: `${index * 50}ms` }"
               >
-                <div class="relative overflow-hidden">
+                <!-- Course Image -->
+                <div class="relative h-40 overflow-hidden">
                   <img
                     :src="course.image"
                     :alt="course.title"
-                    class="w-full h-40 sm:h-48 object-cover group-hover:scale-110 transition-transform duration-700"
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                   >
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div class="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/90 backdrop-blur-sm px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-semibold text-[#564AB1] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    {{ course.category }}
+
+                  <!-- Category Badge -->
+                  <div class="absolute top-3 left-3">
+                    <span class="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold text-gray-800 shadow-sm">
+                      {{ course.category }}
+                    </span>
                   </div>
+
+                  <!-- Gradient overlay on hover -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
 
-                <div class="p-4 sm:p-6">
-                  <h3 class="font-bold text-lg sm:text-xl mb-2 text-gray-900 group-hover:text-[#564AB1] transition-colors duration-300 line-clamp-2">
+                <!-- Course Info -->
+                <div class="p-4 bg-white border-t border-gray-100">
+                  <!-- Course Title -->
+                  <h3 class="font-bold text-gray-900 mb-3 text-base leading-tight line-clamp-2">
                     {{ course.title }}
                   </h3>
 
-                  <div class="flex items-center mb-2 text-gray-600">
-                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <!-- Instructor -->
+                  <div class="flex items-center mb-3 text-gray-600">
+                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
                     </svg>
-                    <span class="text-sm">{{ course.instructor }}</span>
+                    <span class="text-sm font-medium">{{ course.instructor }}</span>
                   </div>
 
-                  <div class="flex items-center mb-4 text-gray-600">
-                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span class="text-sm">{{ course.duration }}</span>
-                  </div>
-
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-sm text-gray-500 line-through">Rp. {{ course.original }}</p>
-                      <p class="text-xl sm:text-2xl font-bold text-[#564AB1]">Rp. {{ course.price }}</p>
+                  <!-- Course Stats -->
+                  <div class="flex items-center gap-4 mb-3 text-gray-600">
+                    <!-- Video Count -->
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                      </svg>
+                      <span class="text-sm">{{ course.video_count || '23' }} videos</span>
                     </div>
+
+                    <!-- Duration -->
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                      </svg>
+                      <span class="text-sm">{{ course.duration }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Price Section -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <!-- Discount Badge -->
+                      <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">50% OFF</span>
+                    </div>
+                  </div>
+
+                  <!-- Price -->
+                  <div class="mt-2">
+                    <div class="flex items-baseline space-x-2">
+                      <span class="text-sm text-gray-500 line-through">Rp. {{ course.original }}</span>
+                    </div>
+                    <div class="text-xl font-bold text-blue-600">Rp. {{ course.price }}</div>
                   </div>
                 </div>
               </router-link>
             </div>
 
-            <!-- Empty State -->
-            <div v-if="filteredCourses.length === 0" class="text-center py-12 sm:py-16">
-              <div class="text-gray-400 mb-4">
-                <svg class="w-12 h-12 sm:w-16 sm:h-16 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"></path>
-                </svg>
+            <!-- Enhanced Empty State -->
+            <div v-if="!loading && filteredCourses.length === 0" class="text-center py-16">
+              <div class="relative">
+                <!-- Animated Background Elements -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <div class="w-32 h-32 bg-gradient-to-r from-[#564AB1]/10 to-[#8B7CF6]/10 rounded-full animate-pulse"></div>
+                </div>
+
+                <!-- Main Icon -->
+                <div class="relative bg-gradient-to-r from-[#564AB1] to-[#8B7CF6] w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                  </svg>
+                </div>
+
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Tidak Ada Kursus Ditemukan</h3>
+                <p class="text-gray-600 mb-6 max-w-md mx-auto">
+                  Maaf, tidak ada kursus yang cocok dengan filter yang Anda pilih. Coba pilih kategori lain atau hubungi kami untuk saran kursus.
+                </p>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
+                  <button
+                    @click="selectCategory('Semua Kategori')"
+                    class="bg-gradient-to-r from-[#564AB1] to-[#8B7CF6] text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                  >
+                    Lihat Semua Kursus
+                  </button>
+                  <button class="border-2 border-[#564AB1] text-[#564AB1] px-6 py-3 rounded-xl font-semibold hover:bg-[#564AB1] hover:text-white transition-all duration-300">
+                    Hubungi Kami
+                  </button>
+                </div>
               </div>
-              <h3 class="text-lg sm:text-xl font-semibold text-gray-600 mb-2">Tidak ada kursus ditemukan</h3>
-              <p class="text-gray-500 text-sm sm:text-base px-4">Coba pilih kategori yang berbeda atau hubungi kami untuk kursus khusus.</p>
             </div>
           </div>
         </div>
@@ -234,28 +269,45 @@ export default {
   name: 'Course',
   data() {
     return {
-      selectedCategory: '',
+      selectedCategory: '', // Changed to single category
       courses: [],
+      categories: [
+        { id: 0, name: 'Semua Kategori' }, // Added "All" option
+        { id: 1, name: 'Web Programming' },
+        { id: 2, name: 'Mobile Programming' },
+        { id: 3, name: 'Fullstack Development' },
+        { id: 4, name: 'Backend Development' },
+        { id: 5, name: 'UI/UX' }
+      ],
       isLoggedIn: false,
       userName: '',
       avatarUrl: '',
-      swiper: null
+      swiper: null,
+      loading: true
     };
   },
   computed: {
     filteredCourses() {
-      if (!this.selectedCategory) return this.courses;
+      if (!this.selectedCategory || this.selectedCategory === 'Semua Kategori') {
+        return this.courses;
+      }
       return this.courses.filter(course => course.category === this.selectedCategory);
     }
   },
   methods: {
     async fetchCourses() {
       try {
+        this.loading = true;
         const response = await axios.get('http://localhost:8000/api/courses');
         this.courses = response.data;
       } catch (error) {
         console.error('Gagal mengambil data kursus:', error);
+      } finally {
+        this.loading = false;
       }
+    },
+    selectCategory(categoryName) {
+      this.selectedCategory = categoryName;
     },
     checkLoginStatus() {
       const authToken = localStorage.getItem('authToken');
@@ -313,7 +365,6 @@ export default {
     this.fetchCourses();
     this.checkLoginStatus();
 
-    // Tambahkan event listener untuk perubahan pada localStorage
     window.addEventListener('localStorageUpdated', this.checkLoginStatus);
 
     this.$nextTick(() => {
@@ -323,10 +374,8 @@ export default {
     });
   },
   beforeUnmount() {
-    // Hapus event listener ketika komponen di-unmount
     window.removeEventListener('localStorageUpdated', this.checkLoginStatus);
 
-    // Destroy Swiper instance
     if (this.swiper) {
       this.swiper.destroy();
       this.swiper = null;
@@ -370,5 +419,35 @@ export default {
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;
+}
+
+/* Animation for course cards */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grid > * {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* Pulse animation for loading */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 </style>

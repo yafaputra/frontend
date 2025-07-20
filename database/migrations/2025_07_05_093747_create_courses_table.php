@@ -6,29 +6,31 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
-        Schema::create('courses', function (Blueprint $table) {
+        Schema::create('course_description', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->string('instructor');
-            $table->string('duration');
-            $table->string('original');
-            $table->string('price');
-            $table->string('image');
-            $table->string('category');
+            $table->string('tag')->nullable();
+            $table->text('overview');
+            $table->string('image_url')->nullable();
+            $table->string('thumbnail')->nullable();
+            $table->decimal('price', 10, 2);
+            $table->decimal('price_discount', 10, 2)->nullable();
+            $table->string('instructor_name')->nullable();
+            $table->string('instructor_position')->nullable();
+            $table->string('instructor_image_url')->nullable();
+            $table->integer('video_count')->default(0);
+            $table->integer('duration')->default(0);
+            $table->json('features')->nullable();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
-        Schema::dropIfExists('courses');
+        Schema::dropIfExists('course_description');
     }
 };
+
+

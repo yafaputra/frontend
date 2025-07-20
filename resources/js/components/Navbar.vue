@@ -24,12 +24,12 @@
 
         <li class="md:hidden flex flex-col space-y-2 mt-2">
           <template v-if="isLoggedIn">
-            <router-link to="/profile" class="text-white hover:text-yellow-300 flex items-center gap-2">
+            <router-link to="/profil_pengguna" class="text-white hover:text-yellow-300 flex items-center gap-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
               </svg>
-              {{ userName }}
+              {{ displayName }}
             </router-link>
             <button @click="logout"
               class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
@@ -49,12 +49,12 @@
 
       <div class="auth-buttons hidden md:flex space-x-3">
         <template v-if="isLoggedIn">
-          <!-- Dropdown Menu untuk Desktop - Fixed Version -->
+          <!-- Dropdown Menu untuk Desktop -->
           <div class="relative">
             <button @click.stop="toggleDropdown"
               class="flex items-center gap-2 text-white hover:text-yellow-300 focus:outline-none">
-              <img :src="avatarUrl" alt="Avatar" class="w-8 h-8 rounded-full border-2 border-yellow-300 object-cover">
-              <span>{{ userName }}</span>
+              <img :src="getAvatarUrl()" alt="Avatar" class="w-8 h-8 rounded-full border-2 border-yellow-300 object-cover">
+              <span>{{ displayName }}</span>
               <svg class="w-4 h-4 text-white transition-transform duration-200" :class="{ 'rotate-180': openDropdown }"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -70,8 +70,9 @@
               <div v-show="openDropdown" v-click-outside="closeDropdown"
                 class="origin-top-right absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg py-2 z-50 border border-gray-200">
                 <div class="flex flex-col items-center mb-2 px-4 pt-2">
-                  <img :src="avatarUrl" alt="Avatar" class="w-12 h-12 rounded-full border-2 border-purple-700 mb-2 object-cover">
-                  <span class="font-bold text-gray-800 text-sm">{{ userName }}</span>
+                  <img :src="getAvatarUrl()" alt="Avatar" class="w-12 h-12 rounded-full border-2 border-purple-700 mb-2 object-cover">
+                  <span class="font-bold text-gray-800 text-sm">{{ displayName }}</span>
+                  <span class="text-xs text-gray-500">{{ userEmail }}</span>
                 </div>
                 <hr class="my-1 border-gray-200">
                 <ul class="space-y-1 px-2 text-gray-700 text-sm">
@@ -151,8 +152,11 @@ export default {
       isMenuOpen: false,
       openDropdown: false,
       isLoggedIn: false,
-      userName: '',
-      avatarUrl: '/image/hajisodikin.jpg',
+      userName: '', // dari tabel users
+      userEmail: '', // dari tabel users
+      displayName: '', // akan menggunakan fullname dari profile atau name dari users
+      avatarUrl: '/image/hajisodikin.jpg', // default avatar
+      userProfile: null, // data dari users_profile
       navLinks: [
         {
           text: 'Home',
@@ -178,9 +182,12 @@ export default {
   created() {
     this.checkLoginStatus();
     window.addEventListener('localStorageUpdated', this.checkLoginStatus);
+    // Listen untuk update profile
+    window.addEventListener('profileUpdated', this.loadUserProfile);
   },
   unmounted() {
     window.removeEventListener('localStorageUpdated', this.checkLoginStatus);
+    window.removeEventListener('profileUpdated', this.loadUserProfile);
   },
   methods: {
     toggleMenu() {
@@ -192,7 +199,21 @@ export default {
     closeDropdown() {
       this.openDropdown = false;
     },
-    checkLoginStatus() {
+
+    // Method untuk mengatur URL avatar
+    getAvatarUrl() {
+      if (this.userProfile && this.userProfile.avatar) {
+        // Jika avatar sudah full URL
+        if (this.userProfile.avatar.startsWith('http')) {
+          return this.userProfile.avatar;
+        }
+        // Jika avatar adalah path relatif
+        return `http://localhost:8000/storage/${this.userProfile.avatar}`;
+      }
+      return '/image/hajisodikin.jpg';
+    },
+
+    async checkLoginStatus() {
       const authToken = localStorage.getItem('authToken');
       const userData = localStorage.getItem('user');
 
@@ -201,23 +222,80 @@ export default {
           const user = JSON.parse(userData);
           this.isLoggedIn = true;
           this.userName = user.name;
-          if (user.avatar) {
-            this.avatarUrl = `/storage/${user.avatar}`;
-          }
+          this.userEmail = user.email;
+
+          // Load profile data
+          await this.loadUserProfile();
+
         } catch (e) {
           console.error("Gagal mengurai data pengguna:", e);
           this.logout();
         }
       } else {
-        this.isLoggedIn = false;
-        this.userName = '';
+        this.resetUserData();
       }
     },
+
+    async loadUserProfile() {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) return;
+
+      try {
+        // Fetch user profile from API
+        const response = await fetch('http://localhost:8000/api/user/profile', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          this.userProfile = data.profile;
+
+          // Set display name: prioritas fullname dari profile, fallback ke name dari users
+          if (this.userProfile && this.userProfile.fullname) {
+            this.displayName = this.userProfile.fullname;
+          } else if (this.userProfile && this.userProfile.username) {
+            this.displayName = this.userProfile.username;
+          } else {
+            this.displayName = this.userName;
+          }
+
+          // Update avatarUrl untuk fallback
+          this.avatarUrl = this.getAvatarUrl();
+
+        } else if (response.status === 404) {
+          // Profile tidak ditemukan, gunakan data dari users table
+          this.userProfile = null;
+          this.displayName = this.userName;
+          this.avatarUrl = '/image/hajisodikin.jpg';
+        } else {
+          throw new Error('Failed to fetch profile');
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        // Fallback ke data user basic
+        this.userProfile = null;
+        this.displayName = this.userName;
+        this.avatarUrl = '/image/hajisodikin.jpg';
+      }
+    },
+
+    resetUserData() {
+      this.isLoggedIn = false;
+      this.userName = '';
+      this.userEmail = '';
+      this.displayName = '';
+      this.avatarUrl = '/image/hajisodikin.jpg';
+      this.userProfile = null;
+    },
+
     logout() {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      this.isLoggedIn = false;
-      this.userName = '';
+      this.resetUserData();
       this.openDropdown = false;
       this.$router.push('/');
       window.dispatchEvent(new Event('localStorageUpdated'));
