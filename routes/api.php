@@ -27,3 +27,7 @@ Route::get('/courses/{id}', [CourseController::class, 'show']);
 
 // Route tambahan untuk mengambil data berdasarkan CourseDescription ID
 Route::get('/course-description/{id}', [CourseController::class, 'showByDescription']);
+
+
+// logout 
+Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
