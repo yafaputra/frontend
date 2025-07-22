@@ -54,16 +54,16 @@
             <div class="text-3xl font-bold text-gray-800 mb-1">
               Rp {{ formatPrice(courseData.price) }}
             </div>
-            <div 
+            <div v-if="courseData.price_discount"
                  class="text-lg line-through text-gray-400">
               Rp {{ formatPrice(courseData.price_discount) }}
             </div>
           </div>
 
           <button @click="buyCourse"
-                  :disabled="loading"
+                  :disabled="loading || processingPayment"
                   class="w-full bg-[#5C52A8] hover:bg-[#4a4190] text-white py-3 rounded-lg font-semibold text-base transition-colors duration-200 disabled:opacity-50 shadow-sm border-2 border-[#5C52A8] hover:border-[#4a4190]">
-            {{ loading ? 'Memuat...' : 'Beli Course' }}
+            {{ processingPayment ? 'Memproses Pembayaran...' : loading ? 'Memuat...' : 'Beli Course' }}
           </button>
         </div>
 
@@ -147,18 +147,18 @@ export default {
         features: []
       },
       loading: true,
-      error: null
+      error: null,
+      processingPayment: false,
+      midtransLoaded: false
     };
   },
   computed: {
     courseId() {
-      // Ambil ID dari route parameter
       return this.$route.params.id;
     },
     courseImageUrl() {
       const path = this.courseData.image_url;
       if (path) {
-        // Jika path sudah include /storage/, gunakan langsung
         if (path.startsWith('/storage/') || path.startsWith('http')) {
           return path;
         }
@@ -175,10 +175,14 @@ export default {
         return `/storage/${path}`;
       }
       return '/images/default-instructor.jpg';
+    },
+    // Check if user is logged in
+    isAuthenticated() {
+      return !!localStorage.getItem('token');
     }
   },
   async mounted() {
-    console.log('Course ID from route:', this.courseId); // Debug log
+    console.log('Course ID from route:', this.courseId);
     if (this.courseId) {
       await this.fetchCourseData();
     } else {
@@ -192,15 +196,16 @@ export default {
       if (value === null || value === undefined) return '0';
       return new Intl.NumberFormat('id-ID').format(Number(value));
     },
+
     async fetchCourseData() {
       this.loading = true;
       this.error = null;
 
       try {
-        console.log(`Fetching course data for ID: ${this.courseId}`); // Debug log
+        console.log(`Fetching course data for ID: ${this.courseId}`);
 
         const response = await axios.get(`http://localhost:8000/api/courses/${this.courseId}`);
-        console.log('Course data response:', response.data); // Debug log
+        console.log('Course data response:', response.data);
 
         if (response.status !== 200) {
           throw new Error(`Failed to fetch course data: ${response.status}`);
@@ -223,7 +228,7 @@ export default {
           features: response.data.features || []
         };
 
-        console.log('Course data loaded:', this.courseData); // Debug log
+        console.log('Course data loaded:', this.courseData);
       } catch (error) {
         console.error('Error fetching course data:', error);
         this.error = error.response?.data?.message || 'Gagal memuat data kursus. Silakan coba lagi.';
@@ -231,13 +236,119 @@ export default {
         this.loading = false;
       }
     },
+
     loadMidtransScript() {
-      // Midtrans script loading logic...
-      // (keep your existing implementation)
+      return new Promise((resolve, reject) => {
+        if (window.snap) {
+          this.midtransLoaded = true;
+          resolve();
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://app.sandbox.midtrans.com/snap/snap.js'; // Sandbox
+        // Untuk production gunakan: 'https://app.midtrans.com/snap/snap.js'
+        script.setAttribute('data-client-key', 'Mid-client-UyQhhqiodzZuSBpA');
+
+        script.onload = () => {
+          this.midtransLoaded = true;
+          console.log('Midtrans script loaded successfully');
+          resolve();
+        };
+
+        script.onerror = () => {
+          console.error('Failed to load Midtrans script');
+          reject(new Error('Failed to load Midtrans script'));
+        };
+
+        document.head.appendChild(script);
+      });
     },
+
     async buyCourse() {
-      // Payment logic...
-      // (keep your existing implementation)
+      // Check if user is authenticated
+      if (!this.isAuthenticated) {
+        alert('Silakan login terlebih dahulu untuk membeli kursus');
+        this.$router.push('/login');
+        return;
+      }
+
+      // Check if Midtrans is loaded
+      if (!this.midtransLoaded) {
+        try {
+          await this.loadMidtransScript();
+        } catch (error) {
+          alert('Gagal memuat sistem pembayaran. Silakan refresh halaman dan coba lagi.');
+          return;
+        }
+      }
+
+      this.processingPayment = true;
+
+      try {
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+
+        // Create payment request
+        const paymentData = {
+          course_id: this.courseData.id,
+          amount: this.courseData.price
+        };
+
+        console.log('Creating payment with data:', paymentData);
+
+        // Call backend to create snap token
+        const response = await axios.post('http://localhost:8000/api/checkout', paymentData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('Payment response:', response.data);
+
+        if (response.data.snap_token) {
+          // Open Midtrans payment popup
+          window.snap.pay(response.data.snap_token, {
+            onSuccess: (result) => {
+              console.log('Payment success:', result);
+              alert('Pembayaran berhasil! Terima kasih telah membeli kursus ini.');
+              // Redirect to course or dashboard
+              this.$router.push('/dashboard');
+            },
+            onPending: (result) => {
+              console.log('Payment pending:', result);
+              alert('Pembayaran sedang diproses. Silakan selesaikan pembayaran Anda.');
+            },
+            onError: (result) => {
+              console.error('Payment error:', result);
+              alert('Terjadi kesalahan dalam pembayaran. Silakan coba lagi.');
+            },
+            onClose: () => {
+              console.log('Payment popup closed');
+              // User closed the payment popup
+            }
+          });
+        } else {
+          throw new Error('Gagal mendapatkan token pembayaran');
+        }
+
+      } catch (error) {
+        console.error('Error processing payment:', error);
+
+        if (error.response?.status === 401) {
+          alert('Sesi Anda telah berakhir. Silakan login kembali.');
+          localStorage.removeItem('token');
+          this.$router.push('/login');
+        } else if (error.response?.status === 422) {
+          alert('Data tidak valid: ' + (error.response.data.message || 'Periksa kembali data Anda'));
+        } else {
+          alert('Gagal memproses pembayaran: ' + (error.response?.data?.message || error.message));
+        }
+      } finally {
+        this.processingPayment = false;
+      }
     }
   }
 };
