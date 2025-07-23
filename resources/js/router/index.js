@@ -44,17 +44,16 @@ const router = createRouter({
 
 // Fungsi untuk memeriksa apakah token otentikasi ada di localStorage
 function isAuthenticated() {
-  return !!localStorage.getItem('auth_token'); // Ganti 'auth_token' jika nama token Anda berbeda
+  // Cek token di localStorage, bisa sesuaikan nama token jika perlu
+  return !!localStorage.getItem('authToken');
 }
 
 // Navigation Guard Global
 router.beforeEach((to, from, next) => {
-  // Cek apakah rute yang dituju memerlukan autentikasi dan user belum login
+  // Jika rute butuh login dan user belum login, redirect ke login
   if (to.meta.requiresAuth && !isAuthenticated()) {
-    // Jika ya, alihkan ke halaman login
     next({ name: 'UserLogin' });
   } else {
-    // Jika tidak, lanjutkan navigasi
     next();
   }
 });
