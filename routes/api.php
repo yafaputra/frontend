@@ -21,6 +21,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [UserProfileController::class, 'show']);
     Route::put('/profile/update', [UserProfileController::class, 'update']);
 
+    // Ganti Password (Change Password)
+    Route::middleware('auth:sanctum')->post('/profile/change-password', [UserProfileController::class, 'changePassword']);
+
     // Payment Routes (Protected)
     Route::post('/checkout', [PaymentController::class, 'createSnapToken']);
     Route::get('/payments', [PaymentController::class, 'getUserPayments']);

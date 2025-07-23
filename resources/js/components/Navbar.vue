@@ -89,7 +89,7 @@
                     </router-link>
                   </li>
                   <li>
-                    <router-link to="/password/change" @click.native="closeDropdown"
+                    <router-link to="/change-password" @click.native="closeDropdown"
                       class="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-purple-50 hover:text-purple-700 transition">
                       <span>🔑</span> Ganti Password
                     </router-link>

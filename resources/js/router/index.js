@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router';
-
 import HomePage from '../components/homepage/HomePage.vue';
 import Course from '../components/course/Course.vue';
 import Course_Description from '../components/course/Course_Description.vue';
@@ -8,12 +7,12 @@ import Profil_Pengguna from '../components/user/Profil_Pengguna.vue';
 import Dashboard from '../components/user/Dashboard.vue';
 import Reward from '../components/user/Reward.vue';
 import About from '../components/About.vue';
-
 import AdminLogin from '../components/admin/Login.vue';
 import UserLogin from '../components/auth/UserLogin.vue';
 import Register from '../components/auth/Register.vue';
 import UserTable from '../components/UserTable.vue';
 import course_content from '../components/course_content/course_content.vue';
+import ChangePassword from '../components/auth/ChangePassword.vue';
 
 const routes = [
   { path: '/', name: 'HomePage', component: HomePage },
@@ -35,6 +34,7 @@ const routes = [
   { path: '/Dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } },
   { path: '/Reward', name: 'Reward', component: Reward, meta: { requiresAuth: true } },
   { path: '/course_content', name: 'CourseContent', component: course_content, meta: { hideLayout: true, requiresAuth: true } },
+  { path: '/change-password', name: 'ChangePassword', component: ChangePassword, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
