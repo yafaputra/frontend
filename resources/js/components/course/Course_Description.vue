@@ -63,7 +63,7 @@
           <!-- Status pembayaran jika sudah pernah beli -->
           <div v-if="hasPurchased" class="mb-4 p-3 bg-green-100 border border-green-300 rounded-lg">
             <p class="text-green-800 font-medium">✓ Anda sudah membeli kursus ini</p>
-            <a :href="'/course_content/' + courseData.id"
+            <a :href="'/course/' + courseData.id"
                class="inline-block mt-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition">
               Mulai Belajar
             </a>
