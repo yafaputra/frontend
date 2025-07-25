@@ -33,7 +33,7 @@ const routes = [
   { path: '/Profil_Pengguna', name: 'ProfilPengguna', component: Profil_Pengguna, meta: { requiresAuth: true } },
   { path: '/Dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } },
   { path: '/Reward', name: 'Reward', component: Reward, meta: { requiresAuth: true } },
-  { path: '/course_content', name: 'CourseContent', component: course_content, meta: { hideLayout: true, requiresAuth: true } },
+  { path: '/course/::courseDescriptionId', name: 'CourseContent', component: course_content, meta: { hideLayout: true, requiresAuth: true } },
   { path: '/change-password', name: 'ChangePassword', component: ChangePassword, meta: { requiresAuth: true } },
 ];
 
@@ -59,3 +59,4 @@ router.beforeEach((to, from, next) => {
 });
 
 export default router;
+

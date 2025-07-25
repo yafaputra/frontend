@@ -37,6 +37,10 @@ class CourseDescriptions extends Model
     {
         return $this->hasOne(Course::class, 'course_description_id');
     }
+       public function courseContents()
+    {
+        return $this->hasMany(CourseContent::class, 'course_description_id');
+    }
 
     protected static function booted()
     {

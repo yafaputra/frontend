@@ -10,76 +10,61 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
+        'user_profile_id',
         'course_id',
         'order_id',
         'amount',
         'status',
         'snap_token',
-        'payment_method',
-        'payment_data'
+        'payment_type',
+        'transaction_id',
+        'transaction_time',
+        'transaction_status',
+        'fraud_status'
     ];
 
     protected $casts = [
-        'payment_data' => 'array',
-        'amount' => 'decimal:2'
+        'amount' => 'decimal:2',
+        'transaction_time' => 'datetime'
     ];
 
-    // Relationships
-    public function user()
+    /**
+     * Get the user profile that owns the payment.
+     */
+    public function userProfile()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(UserProfile::class, 'user_profile_id');
     }
 
+    /**
+     * Get the course associated with the payment.
+     */
     public function course()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(CourseDescriptions::class, 'course_id');
     }
 
-    // Scopes
+    /**
+     * Scope for successful payments
+     */
     public function scopeSuccessful($query)
     {
         return $query->where('status', 'success');
     }
 
+    /**
+     * Scope for pending payments
+     */
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
     }
 
-    // Accessors
-    public function getFormattedAmountAttribute()
+    /**
+     * Scope for failed payments
+     */
+    public function scopeFailed($query)
     {
-        return 'Rp ' . number_format($this->amount, 0, ',', '.');
-    }
-
-    public function getStatusTextAttribute()
-    {
-        $statusTexts = [
-            'pending' => 'Menunggu Pembayaran',
-            'success' => 'Berhasil',
-            'cancelled' => 'Dibatalkan',
-            'expired' => 'Kedaluwarsa',
-            'denied' => 'Ditolak',
-            'challenge' => 'Ditinjau',
-            'refunded' => 'Dikembalikan'
-        ];
-
-        return $statusTexts[$this->status] ?? 'Unknown';
-    }
-
-    public function getStatusColorAttribute()
-    {
-        $statusColors = [
-            'pending' => 'yellow',
-            'success' => 'green',
-            'cancelled' => 'red',
-            'expired' => 'gray',
-            'denied' => 'red',
-            'challenge' => 'orange',
-            'refunded' => 'blue'
-        ];
-
-        return $statusColors[$this->status] ?? 'gray';
+        return $query->whereIn('status', ['failed', 'cancelled', 'expired']);
     }
 }

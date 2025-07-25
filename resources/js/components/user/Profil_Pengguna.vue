@@ -191,159 +191,182 @@ export default {
     this.fetchProfileData();
   },
   methods: {
-    async fetchProfileData() {
-      try {
-        const authToken = localStorage.getItem('authToken');
-        if (!authToken) {
-          this.errorMessage = 'Anda belum login. Silakan login terlebih dahulu.';
-          this.$router.push('/login'); // Arahkan ke halaman login
-          return;
-        }
+    formatDateForInput(dateString) {
+    if (!dateString) return '';
 
-        const response = await axios.get('http://localhost:8000/api/profile', {
-          headers: {
-            Authorization: `Bearer ${authToken}`
-          }
-        });
+    // Jika tanggal sudah dalam format YYYY-MM-DD, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return dateString;
+    }
 
-        const { user, profile } = response.data;
+    // Konversi berbagai format tanggal ke YYYY-MM-DD
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date)) return '';
 
-        // Populate formData from fetched data
-        this.formData.fullname = profile.fullname || user.name;
-        this.formData.username = profile.username || '';
-        this.formData.dob = profile.dob || '';
-        this.formData.email = profile.email || user.email;
-        this.formData.bio = profile.bio || 'Coding enthusiast & Error lover 💀';
-        this.formData.hobbies = profile.hobbies || []; // Hobbies should be an array
-        this.formData.level = profile.level ?? 3; // Use nullish coalescing for default
-        this.formData.progress = profile.progress ?? 60; // Use nullish coalescing for default
-        this.formData.badges = profile.badges || []; // Badges should be an array
+      // Format ke YYYY-MM-DD untuk input HTML
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
+    }
+  },
 
-        // Set avatar URL
-        if (profile.avatar) {
-          this.currentAvatarPreviewUrl = `http://localhost:8000/storage/${profile.avatar}`;
-        } else {
-          this.currentAvatarPreviewUrl = '/image/hajisodikin.jpg'; // Default if no avatar
-        }
-
-        // Set user created at for displaying "Aktif belajar sejak"
-        this.userCreatedAt = user.created_at;
-
-      } catch (error) {
-        console.error('Error fetching profile data:', error);
-        this.errorMessage = error.response?.data?.message || 'Gagal memuat data profil.';
-        // Handle unauthorized or other errors, maybe redirect to login
-        if (error.response?.status === 401) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-            this.$router.push('/login');
-        }
+  // Update method fetchProfileData
+  async fetchProfileData() {
+    try {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        this.errorMessage = 'Anda belum login. Silakan login terlebih dahulu.';
+        this.$router.push('/login');
+        return;
       }
-    },
-    handleAvatarChange(event) {
-      const file = event.target.files[0];
-      if (file) {
-        this.formData.avatar = file;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          this.currentAvatarPreviewUrl = e.target.result;
-        };
-        reader.readAsDataURL(file);
+
+      console.log('🔑 Fetching profile with token:', authToken);
+
+      const response = await axios.get('http://localhost:8000/api/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('✅ Profile response:', response.data);
+
+      const { user, profile } = response.data;
+
+      // Populate formData from fetched data
+      this.formData.fullname = profile.fullname || user.name;
+      this.formData.username = profile.username || '';
+
+      // *** FIX: Format tanggal dengan benar ***
+      this.formData.dob = this.formatDateForInput(profile.dob);
+      console.log('📅 Original DOB:', profile.dob, '-> Formatted:', this.formData.dob);
+
+      this.formData.email = profile.email || user.email;
+      this.formData.bio = profile.bio || 'Coding enthusiast & Error lover 💀';
+      this.formData.hobbies = profile.hobbies || [];
+      this.formData.level = profile.level ?? 3;
+      this.formData.progress = profile.progress ?? 60;
+      this.formData.badges = profile.badges || [];
+
+      // Set avatar URL
+      if (profile.avatar) {
+        this.currentAvatarPreviewUrl = `http://localhost:8000/storage/${profile.avatar}`;
       } else {
-        this.formData.avatar = null;
-        // Revert to original avatar if available, otherwise default
-        this.currentAvatarPreviewUrl = this.formData.avatar_original_url || '/image/hajisodikin.jpg';
+        this.currentAvatarPreviewUrl = '/image/hajisodikin.jpg';
       }
-    },
-    async submitProfile() {
-      this.isSaving = true;
-      this.successMessage = '';
-      this.errorMessage = '';
 
-      const dataToSubmit = new FormData();
-      // Append all form data
-      for (const key in this.formData) {
-        // Handle hobbies array specifically
-        if (key === 'hobbies' && Array.isArray(this.formData.hobbies)) {
-          this.formData.hobbies.forEach(hobby => {
-            dataToSubmit.append('hobbies[]', hobby);
-          });
-        }
-        // Handle avatar file
-        else if (key === 'avatar' && this.formData.avatar instanceof File) {
-          dataToSubmit.append(key, this.formData.avatar);
-        }
-        // Handle other non-null/undefined fields
-        else if (this.formData[key] !== null && this.formData[key] !== undefined && key !== 'badges') {
-          dataToSubmit.append(key, this.formData[key]);
-        }
+      // Set user created at
+      this.userCreatedAt = user.created_at;
+
+    } catch (error) {
+      console.error('❌ Error fetching profile:', error);
+      console.error('📊 Error response:', error.response);
+
+      if (error.response?.status === 401) {
+        this.errorMessage = 'Token tidak valid. Silakan login ulang.';
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        this.$router.push('/login');
+      } else if (error.response?.status === 404) {
+        this.errorMessage = 'Endpoint profil tidak ditemukan. Periksa route backend.';
+      } else {
+        this.errorMessage = error.response?.data?.message || 'Gagal memuat data profil.';
       }
-      dataToSubmit.append('_method', 'PUT'); // Laravel method spoofing
+    }
+  },
 
-      try {
-        const authToken = localStorage.getItem('authToken');
-        if (!authToken) {
-          this.errorMessage = 'Autentikasi diperlukan untuk menyimpan perubahan.';
-          this.$router.push('/login');
-          return;
-        }
+  // Update method submitProfile untuk memastikan format tanggal yang benar
+  async submitProfile() {
+    this.isSaving = true;
+    this.successMessage = '';
+    this.errorMessage = '';
 
-        const response = await axios.post('http://localhost:8000/api/profile/update', dataToSubmit, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'multipart/form-data' // Penting untuk file upload
-          }
+    const dataToSubmit = new FormData();
+
+    // *** Validasi tanggal sebelum submit ***
+    if (this.formData.dob && !/^\d{4}-\d{2}-\d{2}$/.test(this.formData.dob)) {
+      this.errorMessage = 'Format tanggal lahir tidak valid. Gunakan format YYYY-MM-DD.';
+      this.isSaving = false;
+      return;
+    }
+
+    // Append all form data
+    for (const key in this.formData) {
+      if (key === 'hobbies' && Array.isArray(this.formData.hobbies)) {
+        this.formData.hobbies.forEach(hobby => {
+          dataToSubmit.append('hobbies[]', hobby);
         });
-
-        this.successMessage = response.data.message || 'Data berhasil disimpan!';
-        // Update avatar preview if new avatar was uploaded
-        if (response.data.avatar_url) {
-          this.currentAvatarPreviewUrl = response.data.avatar_url;
-        }
-
-        // Optionally, update local user data if name or email changed
-        const currentUserData = JSON.parse(localStorage.getItem('user'));
-        if (currentUserData) {
-            currentUserData.name = this.formData.fullname;
-            currentUserData.email = this.formData.email;
-            localStorage.setItem('user', JSON.stringify(currentUserData));
-            // Trigger Navbar update
-            window.dispatchEvent(new Event('localStorageUpdated'));
-        }
-
-        // Update formData with potentially updated profile data from backend response
-        // This is good practice to ensure UI is in sync with backend state
-        this.formData.fullname = response.data.profile.fullname;
-        this.formData.username = response.data.profile.username;
-        this.formData.email = response.data.profile.email;
-        this.formData.bio = response.data.profile.bio;
-        this.formData.hobbies = response.data.profile.hobbies;
-        this.formData.level = response.data.profile.level;
-        this.formData.progress = response.data.profile.progress;
-        this.formData.badges = response.data.profile.badges; // Update badges from backend
-
-      } catch (error) {
-        console.error('Error submitting profile:', error);
-        if (error.response?.data?.errors) {
-          // Display validation errors
-          const errors = error.response.data.errors;
-          this.errorMessage = Object.values(errors).flat().join('<br>');
-        } else {
-          this.errorMessage = error.response?.data?.message || 'Terjadi kesalahan saat menyimpan data.';
-        }
-        if (error.response?.status === 401) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-            this.$router.push('/login');
-        }
-      } finally {
-        this.isSaving = false;
-        setTimeout(() => {
-          this.successMessage = '';
-          this.errorMessage = '';
-        }, 3000);
+      } else if (key === 'avatar' && this.formData.avatar instanceof File) {
+        dataToSubmit.append(key, this.formData.avatar);
+      } else if (this.formData[key] !== null && this.formData[key] !== undefined && key !== 'badges') {
+        dataToSubmit.append(key, this.formData[key]);
       }
-    },
+    }
+    dataToSubmit.append('_method', 'PUT');
+
+    try {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        this.errorMessage = 'Autentikasi diperlukan untuk menyimpan perubahan.';
+        this.$router.push('/login');
+        return;
+      }
+
+      const response = await axios.post('http://localhost:8000/api/user/profile', dataToSubmit, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      this.successMessage = response.data.message || 'Data berhasil disimpan!';
+
+      // *** PENTING: Update tanggal lahir dari response ***
+      if (response.data.profile && response.data.profile.dob) {
+        this.formData.dob = this.formatDateForInput(response.data.profile.dob);
+        console.log('📅 Updated DOB from response:', response.data.profile.dob, '-> Formatted:', this.formData.dob);
+      }
+
+      // Update avatar preview if new avatar was uploaded
+      if (response.data.avatar_url) {
+        this.currentAvatarPreviewUrl = response.data.avatar_url;
+      }
+
+      // Update local user data
+      const currentUserData = JSON.parse(localStorage.getItem('user'));
+      if (currentUserData) {
+        currentUserData.name = this.formData.fullname;
+        currentUserData.email = this.formData.email;
+        localStorage.setItem('user', JSON.stringify(currentUserData));
+        window.dispatchEvent(new Event('localStorageUpdated'));
+      }
+
+    } catch (error) {
+      console.error('❌ Error submitting profile:', error);
+
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        this.errorMessage = Object.values(errors).flat().join('<br>');
+      } else {
+        this.errorMessage = error.response?.data?.message || 'Terjadi kesalahan saat menyimpan data.';
+      }
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        this.$router.push('/login');
+      }
+    } finally {
+      this.isSaving = false;
+      setTimeout(() => {
+        this.successMessage = '';
+        this.errorMessage = '';
+      }, 3000);
+    }
+  },
     getBadgeClass(badgeName) {
       // Fungsi untuk memberikan kelas Tailwind CSS berdasarkan nama badge
       // Anda bisa kembangkan ini sesuai dengan badge yang Anda miliki

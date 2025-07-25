@@ -55,7 +55,7 @@ class AuthController extends Controller
         }
 
         // Generate token dengan Sanctum
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('authToken')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',
@@ -76,3 +76,4 @@ class AuthController extends Controller
         ]);
     }
 }
+

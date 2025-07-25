@@ -11,22 +11,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_courses', function (Blueprint $table) {
+        Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_profile_id')->constrained('users_profile')->onDelete('cascade');
             $table->foreignId('course_id')->constrained('course_description')->onDelete('cascade');
-            $table->timestamp('enrolled_at')->nullable();
-            $table->integer('progress')->default(0); // Progress in percentage
-            $table->boolean('completed')->default(false);
-            $table->timestamp('completed_at')->nullable();
+            $table->string('order_id')->unique();
+            $table->decimal('amount', 10, 2);
+            $table->enum('status', ['pending', 'success', 'failed', 'cancelled', 'expired', 'challenge'])->default('pending');
+            $table->string('snap_token')->nullable();
+            $table->string('payment_type')->nullable();
+            $table->string('transaction_id')->nullable();
+            $table->timestamp('transaction_time')->nullable();
+            $table->string('transaction_status')->nullable();
+            $table->string('fraud_status')->nullable();
             $table->timestamps();
 
-            // Ensure user can only enroll in a course once
-            $table->unique(['user_id', 'course_id']);
-
-            // Index for better query performance
-            $table->index(['user_id', 'enrolled_at']);
-            $table->index(['course_id', 'enrolled_at']);
+            // Indexes for better performance
+            $table->index(['user_profile_id', 'status']);
+            $table->index(['course_id', 'status']);
+            $table->index('order_id');
         });
     }
 
@@ -35,6 +38,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_courses');
+        Schema::dropIfExists('payments');
     }
 };

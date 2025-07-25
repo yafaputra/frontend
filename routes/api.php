@@ -3,62 +3,98 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseContentController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\PaymentController;
 use Illuminate\Http\Request;
 
-// Route API untuk autentikasi
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+// Public Authentication Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Protected routes (require authentication)
+// Public Course Routes
+Route::get('/courses', [CourseController::class, 'index']);
+Route::get('/courses/{id}', [CourseController::class, 'show']);
+Route::get('/course-description/{id}', [CourseController::class, 'showByDescription']);
+
+// Public Course Content Routes
+Route::prefix('course-content')->group(function () {
+    Route::get('/course/{id}', [CourseContentController::class, 'getByCourseDescription']);
+    Route::get('/slug/{slug}', [CourseContentController::class, 'getBySlug']);
+    Route::get('/navigation/{id}', [CourseContentController::class, 'getNavigation']);
+    Route::get('/prev-next/{slug}', [CourseContentController::class, 'getPrevNext']);
+    Route::get('/search', [CourseContentController::class, 'search']);
+    Route::get('/all', [CourseContentController::class, 'index']);
+});
+
+// Public Payment Routes (untuk Midtrans callback)
+Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
+Route::get('/payment/finish', [PaymentController::class, 'paymentFinish']);
+
+// Protected Routes (require authentication)
 Route::middleware('auth:sanctum')->group(function () {
+    // User info
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
     // User Profile Routes
-    Route::get('/profile', [UserProfileController::class, 'show']);
-    Route::put('/profile/update', [UserProfileController::class, 'update']);
+    Route::get('/user/profile', [UserProfileController::class, 'show']);
+    Route::put('/user/profile', [UserProfileController::class, 'update']);
+    Route::post('/user/profile', [UserProfileController::class, 'update']); // Support both PUT & POST
+    Route::post('/user/change-password', [UserProfileController::class, 'changePassword']);
 
-    // Ganti Password (Change Password)
-    Route::middleware('auth:sanctum')->post('/profile/change-password', [UserProfileController::class, 'changePassword']);
+    // Method khusus untuk payment (jika diperlukan)
+    Route::get('/user/profile-for-payment', [UserProfileController::class, 'getProfileForPayment']);
 
     // Payment Routes (Protected)
-    Route::post('/checkout', [PaymentController::class, 'createSnapToken']);
-    Route::get('/payments', [PaymentController::class, 'getUserPayments']);
-    Route::get('/payments/status/{orderId}', [PaymentController::class, 'checkPaymentStatus']);
+    Route::prefix('payment')->group(function () {
+        Route::post('/create-snap-token', [PaymentController::class, 'createSnapToken']);
+        Route::get('/status/{orderId}', [PaymentController::class, 'checkPaymentStatus']);
+        Route::get('/user-payments', [PaymentController::class, 'getUserPayments']);
+    });
+    Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']);
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
-});
 
-// Course Routes (Public)
-Route::get('/courses', [CourseController::class, 'index']);
-Route::get('/courses/{id}', [CourseController::class, 'show']);
-Route::get('/course-description/{id}', [CourseController::class, 'showByDescription']);
+    // Protected Course Content Routes (jika diperlukan autentikasi untuk akses konten)
+    Route::prefix('protected/course-content')->group(function () {
+        Route::get('/course/{id}', [CourseContentController::class, 'getByCourseDescription']);
+        Route::post('/progress/{courseId}', function (Request $request, $courseId) {
+            // Save user progress
+            $user = $request->user();
+            $progress = $request->input('progress', []);
 
-// Midtrans Webhook (Public - no auth required for webhook)
-Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']);
+            // Logic to save progress to database
+            // You can create a UserProgress model for this
 
-// Payment finish URL (Public)
-Route::get('/payment/finish', function(Request $request) {
-    return view('payment.finish', [
-        'order_id' => $request->order_id,
-        'status_code' => $request->status_code,
-        'transaction_status' => $request->transaction_status
-    ]);
-});
+            return response()->json([
+                'success' => true,
+                'message' => 'Progress saved successfully'
+            ]);
+        });
 
-// Test route untuk memastikan Midtrans config berjalan
-Route::get('/test-midtrans', function() {
-    return response()->json([
-        'midtrans_config' => [
-            'merchant_id' => config('services.midtrans.merchant_id'),
-            'client_key' => config('services.midtrans.client_key'),
-            'server_key' => substr(config('services.midtrans.server_key'), 0, 10) . '...',
-            'is_production' => config('services.midtrans.is_production'),
-            'snap_url' => config('services.midtrans.snap_url')
-        ]
-    ]);
+        Route::get('/progress/{courseId}', function (Request $request, $courseId) {
+            // Get user progress
+            $user = $request->user();
+
+            // Logic to retrieve progress from database
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'completed_materials' => [],
+                    'current_material' => null,
+                    'progress_percentage' => 0
+                ]
+            ]);
+        });
+    });
 });

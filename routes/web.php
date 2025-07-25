@@ -34,3 +34,9 @@ Route::prefix('admin')->middleware('auth')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::resource('users', UserProfileController::class);
 });
+
+Route::get('/login', function () {
+    return response()->json([
+        'message' => 'This is an API microservice. Please use frontend login.'
+    ]);
+})->name('login');
