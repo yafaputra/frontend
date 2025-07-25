@@ -524,7 +524,7 @@ export default {
       this.showSuccessModal = false;
 
       // Redirect langsung ke course content
-      this.$router.push(`/course_content/${this.courseData.id}`);
+      this.$router.push(`/course/${this.courseData.id}`);
     }
   }
 };
