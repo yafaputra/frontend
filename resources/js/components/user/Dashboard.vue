@@ -44,7 +44,7 @@
                                     </span>
                                 </div>
                                 <a
-                                    :href="'/course_content/' + course.id"
+                                    :href="'/course/' + course.id"
                                     class="inline-block mt-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition text-sm"
                                 >
                                     Mulai Belajar 🚀
@@ -90,7 +90,7 @@
                 <div class="bg-white shadow rounded-lg p-6">
                     <h3 class="text-lg font-semibold text-purple-700 flex items-center gap-2">🔥 Program Aktif</h3>
                     <div v-if="activeProgram">
-                        <a :href="'/course_content/' + activeProgram.id" class="block">
+                        <a :href="'/course/' + activeProgram.id" class="block">
                             <h4 class="text-xl font-bold text-purple-800 mt-2 hover:text-purple-600 transition">
                                 {{ activeProgram.title }}
                             </h4>
@@ -157,7 +157,7 @@
                         <h3 class="text-lg font-bold text-purple-800">{{ activeProgram ? activeProgram.title : 'Course Aktif' }}</h3>
                         <p class="text-sm text-gray-600">{{ activeProgram ? 'Lanjutkan pembelajaran' : 'Belum ada course aktif' }}</p>
                     </div>
-                    <a :href="activeProgram ? '/course_content/' + activeProgram.id : '/course'"
+                    <a :href="activeProgram ? '/course/' + activeProgram.id : '/course'"
                         class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition">
                         {{ activeProgram ? 'Lanjutkan' : 'Pilih Course' }}
                     </a>
@@ -258,8 +258,8 @@ export default {
                 reward: '/user/reward',
                 logout: '/logout',
                 certificate: '/certificate',
-                Course: '/Course',
-                tanyaMentor: 'Tanya_Mentor',
+                course: '/course',
+                tanyaMentor: '/tanya-mentor',
             })
         },
         assetBaseUrl: {
@@ -267,43 +267,42 @@ export default {
             default: '/'
         }
     },
+
     data() {
         return {
+            // UI State
             open: false,
             isScrolled: false,
+            loading: true,
+            loadAttempts: 0,
+            maxLoadAttempts: 3,
+
+            // Progress Data
             progress: 0,
             modulSelesai: 0,
             totalModul: 20,
             userLevel: 1,
             levelProgress: 0,
-            userXP: 0,
+            userXP: 100,
 
-            // Data course yang sudah dibeli
+            // Course Data
             purchasedCourses: [],
             activeProgram: null,
+
+            // Notification Data
             showPurchaseNotification: false,
             latestPurchasedCourse: '',
-
-            // Loading state
-            loading: true,
-
-            // Notifications
             notifications: [
                 {
                     id: 1,
                     type: 'Welcome',
                     badgeClass: 'inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded mr-2',
                     message: '🎉 Selamat datang di Dunia Coding! Mulai perjalanan coding kamu sekarang.'
-                },
-                {
-                    id: 2,
-                    type: 'Info',
-                    badgeClass: 'inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded mr-2',
-                    message: '📚 Ada course baru tersedia! Cek sekarang dan dapatkan early bird discount.'
                 }
             ]
         };
     },
+
     computed: {
         userName() {
             return this.getUserName();
@@ -317,7 +316,6 @@ export default {
         nextSessionDate() {
             if (!this.activeProgram) return '';
 
-            // Generate next session date (next Monday at 19:00)
             const today = new Date();
             const nextMonday = new Date(today);
             const daysUntilMonday = (8 - today.getDay()) % 7 || 7;
@@ -331,25 +329,59 @@ export default {
             }) + ' - 19:00 WIB';
         }
     },
+
     async mounted() {
-        // Cek apakah ada parameter success dari redirect pembayaran
+        console.log('🎯 Dashboard mounted - starting initialization...');
+        this.setupAxios();
+
+        // Check for payment success from URL
         const urlParams = new URLSearchParams(window.location.search);
         const paymentSuccess = urlParams.get('payment_success');
         const courseTitle = urlParams.get('course_title');
 
         if (paymentSuccess === 'true' && courseTitle) {
+            console.log('💰 Payment success detected from URL');
             this.showSuccessNotification(decodeURIComponent(courseTitle));
+
+            // Delay untuk memberi waktu payment notification diproses
+            setTimeout(async () => {
+                await this.loadPurchasedCoursesWithRetry();
+            }, 3000);
+        } else {
+            await this.loadPurchasedCoursesWithRetry();
         }
 
-        await this.loadPurchasedCourses();
         this.updateUserStats();
-
         window.addEventListener('scroll', this.handleScroll);
     },
+
     beforeUnmount() {
         window.removeEventListener('scroll', this.handleScroll);
     },
+
     methods: {
+        // ===== SETUP AXIOS =====
+        setupAxios() {
+            // Set base URL jika belum di-set
+            if (!axios.defaults.baseURL) {
+                axios.defaults.baseURL = 'http://localhost:8000';
+            }
+
+            // Set default headers
+            axios.defaults.headers.common['Accept'] = 'application/json';
+            axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+            // Set auth token jika ada
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                console.log('✅ Auth token set globally');
+            }
+
+            console.log('🔧 Axios configured with base URL:', axios.defaults.baseURL);
+        },
+
+        // ===== USER NAME =====
         getUserName() {
             try {
                 const userData = localStorage.getItem('user');
@@ -362,33 +394,150 @@ export default {
             }
             return 'Pengguna';
         },
+
+        // ===== LOAD COURSES WITH RETRY =====
+        async loadPurchasedCoursesWithRetry() {
+            console.log('🔄 Starting loadPurchasedCoursesWithRetry...');
+
+            for (let attempt = 1; attempt <= this.maxLoadAttempts; attempt++) {
+                console.log(`🎯 Load attempt ${attempt}/${this.maxLoadAttempts}`);
+
+                try {
+                    await this.loadPurchasedCourses();
+
+                    // Jika berhasil dan ada course, keluar dari loop
+                    if (this.purchasedCourses.length > 0) {
+                        console.log('✅ Courses loaded successfully!');
+                        return;
+                    }
+
+                    // Jika tidak ada course tapi payment success, tunggu sebelum retry
+                    if (attempt < this.maxLoadAttempts) {
+                        console.log(`⏳ No courses found, waiting before retry...`);
+                        await this.delay(2000);
+                    }
+
+                } catch (error) {
+                    console.error(`❌ Load attempt ${attempt} failed:`, error);
+
+                    if (attempt < this.maxLoadAttempts) {
+                        await this.delay(1000);
+                    }
+                }
+            }
+
+            console.log('⚠️ All load attempts exhausted');
+        },
+
+        // ===== LOAD PURCHASED COURSES =====
         async loadPurchasedCourses() {
             try {
+                console.log('🔍 Starting loadPurchasedCourses...');
+
                 const token = localStorage.getItem('authToken');
+
                 if (!token) {
-                    console.log('No token found, skipping course load');
+                    console.log('❌ No token found, skipping course load');
+                    this.loading = false;
+                    this.updateEmptyStateNotifications();
                     return;
                 }
 
+                console.log('✅ Token found, making API request...');
+
+                // FIXED: Menggunakan URL yang konsisten
                 const response = await axios.get('/api/my-courses', {
-                    headers: { Authorization: `Bearer ${token}` }
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
                 });
 
-                this.purchasedCourses = response.data.courses || [];
-                
-                // Set active program (course terakhir yang dibeli)
-                if (this.purchasedCourses.length > 0) {
-                    this.activeProgram = this.purchasedCourses[this.purchasedCourses.length - 1];
+                console.log('📡 API Response Status:', response.status);
+                console.log('📄 API Response Data:', response.data);
+
+                if (response.data.success) {
+                    this.purchasedCourses = response.data.courses || [];
+                    console.log('✅ Purchased courses loaded:', this.purchasedCourses.length);
+
+                    if (this.purchasedCourses.length > 0) {
+                        // Set active program (course terbaru)
+                        this.activeProgram = this.purchasedCourses[0];
+                        console.log('🎯 Active program set:', this.activeProgram);
+                        this.updatePurchasedStateNotifications();
+
+                        // Force reactivity update
+                        this.$forceUpdate();
+                    } else {
+                        console.log('📝 No purchased courses found');
+                        this.activeProgram = null;
+                        this.updateEmptyStateNotifications();
+                    }
+
+                    this.updateUserStats();
+
+                } else {
+                    console.error('❌ API returned success: false', response.data);
+                    this.purchasedCourses = [];
+                    this.updateEmptyStateNotifications();
                 }
 
             } catch (error) {
-                console.error('Error loading purchased courses:', error);
-                this.purchasedCourses = [];
+                console.error('💥 Error loading purchased courses:', error);
+                console.error('📄 Error response:', error.response?.data);
+                console.error('🔢 Error status:', error.response?.status);
+
+                if (error.response?.status === 401) {
+                    console.log('🔑 Token expired or invalid, clearing auth data');
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('user');
+                    delete axios.defaults.headers.common['Authorization'];
+                    this.purchasedCourses = [];
+                    this.activeProgram = null;
+                    this.updateEmptyStateNotifications();
+                } else {
+                    // Jika bukan 401, lempar error untuk retry
+                    throw error;
+                }
+
             } finally {
                 this.loading = false;
+                console.log('✅ loadPurchasedCourses completed');
             }
         },
 
+        // ===== SUCCESS NOTIFICATION =====
+        showSuccessNotification(courseTitle) {
+            console.log('🎉 Showing success notification for:', courseTitle);
+
+            this.showPurchaseNotification = true;
+            this.latestPurchasedCourse = courseTitle;
+
+            // Tambah notifikasi ke daftar
+            this.notifications.unshift({
+                id: Date.now(),
+                type: 'Baru',
+                badgeClass: 'inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded mr-2',
+                message: `🎉 Selamat! Kamu berhasil membeli "${courseTitle}". Selamat belajar!`
+            });
+
+            // Update stats
+            this.updateUserStats();
+        },
+
+        // ===== DISMISS NOTIFICATION =====
+        dismissNotification() {
+            this.showPurchaseNotification = false;
+
+            // Hapus parameter dari URL
+            const url = new URL(window.location);
+            url.searchParams.delete('payment_success');
+            url.searchParams.delete('course_title');
+            window.history.replaceState({}, document.title, url.pathname);
+        },
+
+        // ===== UPDATE NOTIFICATIONS =====
         updateEmptyStateNotifications() {
             this.notifications = [
                 {
@@ -435,35 +584,7 @@ export default {
             ];
         },
 
-        showSuccessNotification(courseTitle) {
-            this.showPurchaseNotification = true;
-            this.latestPurchasedCourse = courseTitle;
-
-            // Tambah notifikasi ke daftar
-            this.notifications.unshift({
-                id: Date.now(),
-                type: 'Baru',
-                badgeClass: 'inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded mr-2',
-                message: `🎉 Selamat! Kamu berhasil membeli "${courseTitle}". Selamat belajar!`
-            });
-
-            // Refresh data course yang dibeli
-            this.loadPurchasedCourses();
-
-            // Update stats user
-            this.updateUserStats();
-        },
-
-        dismissNotification() {
-            this.showPurchaseNotification = false;
-
-            // Hapus parameter dari URL
-            const url = new URL(window.location);
-            url.searchParams.delete('payment_success');
-            url.searchParams.delete('course_title');
-            window.history.replaceState({}, document.title, url.pathname);
-        },
-
+        // ===== UPDATE USER STATS =====
         updateUserStats() {
             // Update stats berdasarkan jumlah course yang dibeli
             const baseXP = 100;
@@ -480,14 +601,17 @@ export default {
 
             // Update progress berdasarkan course yang dibeli
             if (this.purchasedCourses.length > 0) {
-                // Base progress jika sudah beli course
                 this.modulSelesai = Math.max(this.modulSelesai, 2);
                 this.progress = Math.round((this.modulSelesai / this.totalModul) * 100);
             } else {
-                // Reset progress jika belum beli course
                 this.modulSelesai = 0;
                 this.progress = 0;
             }
+        },
+
+        // ===== HELPER METHODS =====
+        delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
         },
 
         getCourseImageUrl(imagePath) {
@@ -534,6 +658,59 @@ export default {
             this.isScrolled = window.pageYOffset > 100;
             if (this.isScrolled) {
                 this.open = false;
+            }
+        },
+
+        // ===== MANUAL REFRESH =====
+        async manualRefreshCourses() {
+            console.log('🔄 Manual refresh triggered');
+            this.loading = true;
+            this.loadAttempts = 0;
+            await this.loadPurchasedCoursesWithRetry();
+        },
+
+        // ===== DEBUG METHODS =====
+        async debugCourseData() {
+            console.log('🔧 Manual Debug Started...');
+
+            try {
+                const token = localStorage.getItem('authToken');
+
+                if (!token) {
+                    console.log('❌ No token found');
+                    return;
+                }
+
+                // Check user info
+                console.log('1️⃣ Checking user info...');
+                const userResponse = await axios.get('/api/user', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                console.log('👤 User data:', userResponse.data);
+
+                // Check raw payments
+                console.log('2️⃣ Checking raw payments...');
+                const paymentsResponse = await axios.get('/api/debug/raw-payments', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                console.log('💳 Payments data:', paymentsResponse.data);
+
+                // Check my courses
+                console.log('3️⃣ Checking my courses...');
+                const coursesResponse = await axios.get('/api/my-courses', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                console.log('📚 Courses result:', coursesResponse.data);
+
+                return {
+                    user: userResponse.data,
+                    payments: paymentsResponse.data,
+                    courses: coursesResponse.data
+                };
+
+            } catch (error) {
+                console.error('💥 Debug error:', error);
+                return { error: error.message };
             }
         }
     }

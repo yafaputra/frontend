@@ -40,3 +40,16 @@ Route::get('/login', function () {
         'message' => 'This is an API microservice. Please use frontend login.'
     ]);
 })->name('login');
+
+Route::middleware('auth:sanctum')->get('/debug/quick-fix', function(Request $request) {
+    $user = $request->user();
+
+    // Check semua data mentah
+    return response()->json([
+        'user_id' => $user->id,
+        'payments' => DB::table('payments')->where('user_profile_id', $user->id)->get(),
+        'courses' => DB::table('courses')->get(),
+        'course_desc_table_exists' => Schema::hasTable('course_description'),
+        'course_descs_table_exists' => Schema::hasTable('course_descriptions'),
+    ]);
+});

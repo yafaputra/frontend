@@ -63,16 +63,24 @@
           <!-- Status pembayaran jika sudah pernah beli -->
           <div v-if="hasPurchased" class="mb-4 p-3 bg-green-100 border border-green-300 rounded-lg">
             <p class="text-green-800 font-medium">✓ Anda sudah membeli kursus ini</p>
+            <p v-if="purchaseDetails" class="text-sm text-green-600 mt-1">
+              Dibeli pada: {{ formatDate(purchaseDetails.purchased_at) }}
+            </p>
             <a :href="'/course/' + courseData.id"
                class="inline-block mt-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition">
               Mulai Belajar
             </a>
           </div>
 
+          <!-- Peringatan jika ada pembayaran pending -->
+          <div v-if="pendingPaymentWarning" class="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+            <p class="text-yellow-800 font-medium">⚠️ {{ pendingPaymentWarning }}</p>
+          </div>
+
           <button @click="buyCourse"
                   :disabled="loading || paymentLoading || hasPurchased"
                   class="w-full bg-[#5C52A8] hover:bg-[#4a4190] text-white py-3 rounded-lg font-semibold text-base transition-colors duration-200 disabled:opacity-50 shadow-sm border-2 border-[#5C52A8] hover:border-[#4a4190]">
-            {{ paymentLoading ? 'Memproses...' : hasPurchased ? 'Sudah Dibeli' : 'Beli Course' }}
+            {{ getButtonText() }}
           </button>
         </div>
 
@@ -161,6 +169,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Error - Duplicate Purchase -->
+    <div v-if="showErrorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-8 rounded-lg shadow-lg text-center max-w-md mx-4">
+        <div class="text-6xl mb-4">❌</div>
+        <h3 class="text-2xl font-bold text-red-600 mb-2">Pembelian Gagal</h3>
+        <p class="text-gray-700 mb-4">{{ errorMessage }}</p>
+        <div class="flex gap-3 justify-center">
+          <button @click="closeErrorModal"
+                  class="bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
+            Tutup
+          </button>
+          <button v-if="hasPurchased" @click="startLearning"
+                  class="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 transition">
+            Mulai Belajar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -191,8 +218,12 @@ export default {
       error: null,
       paymentLoading: false,
       hasPurchased: false,
+      purchaseDetails: null,
       userProfile: null,
       showSuccessModal: false,
+      showErrorModal: false,
+      errorMessage: '',
+      pendingPaymentWarning: null,
       redirectCountdown: 5,
       redirectTimer: null
     };
@@ -242,6 +273,23 @@ export default {
     formatPrice(value) {
       if (value === null || value === undefined) return '0';
       return new Intl.NumberFormat('id-ID').format(Number(value));
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return '';
+      return new Date(dateString).toLocaleDateString('id-ID', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
+
+    getButtonText() {
+      if (this.paymentLoading) return 'Memproses...';
+      if (this.hasPurchased) return 'Sudah Dibeli';
+      return 'Beli Course';
     },
 
     async fetchCourseData() {
@@ -310,7 +358,8 @@ export default {
             email: response.data.user.email,
           };
 
-          await this.checkPurchaseStatus();
+          // Check if user already purchased this course
+          await this.checkCoursePurchase();
         } else {
           console.error('Invalid profile response structure');
           this.userProfile = null;
@@ -326,33 +375,35 @@ export default {
       }
     },
 
-    async checkPurchaseStatus() {
-      if (!this.userProfile || !this.userProfile.id) {
-        console.log('No user profile available for purchase check');
+    // NEW METHOD: Check course purchase using dedicated endpoint
+    async checkCoursePurchase() {
+      if (!this.userProfile || !this.userProfile.id || !this.courseData.id) {
+        console.log('Missing user profile or course data for purchase check');
         return;
       }
 
       try {
-        const response = await axios.get('http://localhost:8000/api/payment/user-payments', {
-          params: {
-            user_profile_id: this.userProfile.id
-          },
+        const response = await axios.post('http://localhost:8000/api/payment/check-course-purchase', {
+          user_profile_id: this.userProfile.id,
+          course_id: this.courseData.id
+        }, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`
           }
         });
 
-        console.log('Payment response:', response.data);
+        console.log('Course purchase check response:', response.data);
 
-        const successfulPayment = response.data.payments.find(payment =>
-          payment.course_id === parseInt(this.courseData.id) && payment.status === 'success'
-        );
+        this.hasPurchased = response.data.has_purchased;
+        this.purchaseDetails = response.data.payment_details;
 
-        this.hasPurchased = !!successfulPayment;
         console.log('Has purchased:', this.hasPurchased);
+        if (this.purchaseDetails) {
+          console.log('Purchase details:', this.purchaseDetails);
+        }
 
       } catch (error) {
-        console.error('Error checking purchase status:', error);
+        console.error('Error checking course purchase:', error);
         if (error.response?.status === 401) {
           console.log('Token expired, clearing localStorage');
           localStorage.removeItem('authToken');
@@ -388,22 +439,27 @@ export default {
     },
 
     async buyCourse() {
+      // Check if user is logged in
       if (!this.userProfile) {
         await this.checkUserProfile();
       }
 
       if (!this.userProfile) {
-        alert('Anda harus login terlebih dahulu untuk membeli kursus');
-        this.$router.push('/login');
+        this.showError('Anda harus login terlebih dahulu untuk membeli kursus');
+        setTimeout(() => {
+          this.$router.push('/login');
+        }, 2000);
         return;
       }
 
+      // Double check if user already purchased
       if (this.hasPurchased) {
-        alert('Anda sudah membeli kursus ini');
+        this.showError('Anda sudah membeli kursus ini sebelumnya. Silakan langsung mulai belajar.');
         return;
       }
 
       this.paymentLoading = true;
+      this.pendingPaymentWarning = null;
 
       try {
         const token = localStorage.getItem('authToken');
@@ -422,7 +478,7 @@ export default {
           }
         );
 
-        if (response.data.snap_token) {
+        if (response.data.success && response.data.snap_token) {
           window.snap.pay(response.data.snap_token, {
             onSuccess: (result) => this.handlePaymentSuccess(result),
             onPending: (result) => this.handlePaymentPending(result),
@@ -432,63 +488,125 @@ export default {
               this.paymentLoading = false;
             }
           });
+        } else {
+          throw new Error(response.data.error || 'Failed to create payment token');
         }
       } catch (error) {
         console.error('Payment error:', error);
         this.paymentLoading = false;
 
         if (error.response?.status === 401) {
-          alert('Sesi Anda telah habis. Silakan login kembali.');
-          localStorage.removeItem('authToken');
-          this.$router.push('/login');
+          this.showError('Sesi Anda telah habis. Silakan login kembali.');
+          setTimeout(() => {
+            localStorage.removeItem('authToken');
+            this.$router.push('/login');
+          }, 2000);
+        } else if (error.response?.data?.error_code === 'DUPLICATE_PURCHASE') {
+          // Handle duplicate purchase error
+          this.showError('Anda sudah membeli kursus ini sebelumnya. Silakan refresh halaman untuk melihat status terbaru.');
+          // Refresh purchase status
+          setTimeout(async () => {
+            await this.checkCoursePurchase();
+          }, 1000);
+        } else if (error.response?.data?.error_code === 'PENDING_PAYMENT_EXISTS') {
+          // Handle pending payment exists
+          this.pendingPaymentWarning = error.response.data.error;
+          this.showError('Anda masih memiliki pembayaran yang sedang diproses untuk kursus ini.');
         } else {
-          alert('Terjadi kesalahan saat memproses pembayaran: ' +
-            (error.response?.data?.message || error.message));
+          this.showError('Terjadi kesalahan saat memproses pembayaran: ' +
+            (error.response?.data?.error || error.message));
         }
       }
     },
 
-    // Method untuk handle success payment
     async handlePaymentSuccess(result) {
       console.log('Payment success:', result);
       this.paymentLoading = false;
 
-      // Update status hasPurchased langsung
-      this.hasPurchased = true;
-
-      // Tampilkan modal sukses
-      this.showSuccessModal = true;
-      this.startRedirectCountdown();
-    },
-
-    // Method untuk handle pending payment
-    handlePaymentPending(result) {
-      console.log('Payment pending:', result);
-      this.paymentLoading = false;
-      alert('Pembayaran pending. Silakan selesaikan pembayaran Anda.');
-    },
-    async checkPaymentStatus(orderId) {
-    try {
-        const response = await axios.get(
-            `/api/payment/status/${orderId}`,
-            { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }}
+      try {
+        // Manual check payment status dari Midtrans
+        const statusResponse = await axios.get(
+          `http://localhost:8000/api/payment/status/${result.order_id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
         );
 
-        if (response.data.payment_status === 'completed') {
-            this.hasPurchased = true;
-            this.showSuccessModal = true;
-            this.startRedirectCountdown();
-        }
-    } catch (error) {
-        console.error('Status check error:', error);
-    }
-},
+        console.log('Payment status check result:', statusResponse.data);
 
-    // Method untuk handle error payment
+        // Check for duplicate error in response
+        if (statusResponse.data.error && statusResponse.data.error.includes('already own this course')) {
+          this.showError('Pembayaran berhasil tetapi terdeteksi bahwa Anda sudah memiliki kursus ini sebelumnya.');
+          await this.checkCoursePurchase(); // Refresh purchase status
+          return;
+        }
+
+        // Update status hasPurchased berdasarkan hasil check
+        if (statusResponse.data.payment_status === 'success') {
+          this.hasPurchased = true;
+          this.showSuccessModal = true;
+          this.startRedirectCountdown();
+        } else {
+          // Retry check setelah 2 detik
+          setTimeout(async () => {
+            await this.checkPaymentStatus(result.order_id);
+          }, 2000);
+        }
+
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+        // Tetap tampilkan modal sukses jika ada error
+        this.showSuccessModal = true;
+        this.startRedirectCountdown();
+      }
+    },
+
+    async handlePaymentPending(result) {
+      console.log('Payment pending:', result);
+      this.paymentLoading = false;
+      this.pendingPaymentWarning = 'Pembayaran Anda sedang diproses. Silakan tunggu konfirmasi.';
+    },
+
+    async checkPaymentStatus(orderId) {
+      try {
+        const response = await axios.get(
+          `http://localhost:8000/api/payment/status/${orderId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
+        );
+
+        if (response.data.payment_status === 'success') {
+          this.hasPurchased = true;
+          this.showSuccessModal = true;
+          this.startRedirectCountdown();
+        } else if (response.data.error && response.data.error.includes('already own this course')) {
+          this.showError('Terdeteksi bahwa Anda sudah memiliki kursus ini sebelumnya.');
+          await this.checkCoursePurchase(); // Refresh purchase status
+        }
+      } catch (error) {
+        console.error('Status check error:', error);
+      }
+    },
+
     handlePaymentError(error) {
       console.error('Payment error:', error);
       this.paymentLoading = false;
-      alert('Terjadi kesalahan dalam pembayaran. Silakan coba lagi.');
+      this.showError('Terjadi kesalahan dalam pembayaran. Silakan coba lagi.');
+    },
+
+    showError(message) {
+      this.errorMessage = message;
+      this.showErrorModal = true;
+    },
+
+    closeErrorModal() {
+      this.showErrorModal = false;
+      this.errorMessage = '';
     },
 
     startRedirectCountdown() {
@@ -522,6 +640,7 @@ export default {
         clearInterval(this.redirectTimer);
       }
       this.showSuccessModal = false;
+      this.showErrorModal = false;
 
       // Redirect langsung ke course content
       this.$router.push(`/course/${this.courseData.id}`);

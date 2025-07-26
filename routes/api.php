@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+    Route::middleware('auth:sanctum')->get('/my-courses', [CourseController::class, 'myCourses']);
 
     // User Profile Routes
     Route::get('/profile', [UserProfileController::class, 'show']); // Alias untuk /api/profile
@@ -62,8 +63,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/create-snap-token', [PaymentController::class, 'createSnapToken']);
         Route::get('/status/{orderId}', [PaymentController::class, 'checkPaymentStatus']);
         Route::get('/user-payments', [PaymentController::class, 'getUserPayments']);
+            Route::post('/notification', [PaymentController::class, 'handleNotification']);
+
     });
-    Route::post('/midtrans/notification', [PaymentController::class, 'handleNotification']);
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -108,5 +110,36 @@ Route::middleware('auth:sanctum')->group(function () {
                 ]
             ]);
         });
+    });
+});
+
+
+// Tambahkan routes ini di api.php untuk debug
+
+// Debug routes - hapus setelah masalah selesai
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/debug/database', [CourseController::class, 'debugDatabase']);
+    Route::get('/debug/my-courses', [CourseController::class, 'myCourses']);
+
+    // Route untuk cek raw data
+    Route::get('/debug/raw-payments', function(Request $request) {
+        $user = $request->user();
+        return response()->json([
+            'user_id' => $user->id,
+            'all_payments' => DB::table('payments')->where('user_profile_id', $user->id)->get(),
+            'successful_payments' => DB::table('payments')
+                ->where('user_profile_id', $user->id)
+                ->where('status', 'success')
+                ->get()
+        ]);
+    });
+
+    // Route untuk cek struktur tabel
+    Route::get('/debug/table-structure', function() {
+        return response()->json([
+            'payments' => DB::select("SHOW COLUMNS FROM payments"),
+            'courses' => DB::select("SHOW COLUMNS FROM courses"),
+            'course_descriptions' => DB::select("SHOW COLUMNS FROM course_descriptions")
+        ]);
     });
 });
