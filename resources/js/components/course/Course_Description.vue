@@ -294,7 +294,7 @@ export default {
 
         console.log('Token:', token.substring(0, 30) + '...');
 
-        const response = await axios.get('http://localhost:8000/api/user/profile', {
+        const response = await axios.get('/api/profile', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'

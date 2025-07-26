@@ -208,7 +208,7 @@ export default {
           return this.userProfile.avatar;
         }
         // Jika avatar adalah path relatif
-        return `http://localhost:8000/storage/${this.userProfile.avatar}`;
+        return `/storage/${this.userProfile.avatar}`;
       }
       return '/image/hajisodikin.jpg';
     },
@@ -240,9 +240,12 @@ export default {
       const authToken = localStorage.getItem('authToken');
       if (!authToken) return;
 
+      // Clear cache untuk memaksa reload data terbaru
+      sessionStorage.removeItem('userProfile');
+
       try {
         // Fetch user profile from API
-        const response = await fetch('http://localhost:8000/api/user/profile', {
+        const response = await fetch('/api/profile', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -254,16 +257,10 @@ export default {
           const data = await response.json();
           this.userProfile = data.profile;
 
-          // Set display name: prioritas fullname dari profile, fallback ke name dari users
-          if (this.userProfile && this.userProfile.fullname) {
-            this.displayName = this.userProfile.fullname;
-          } else if (this.userProfile && this.userProfile.username) {
-            this.displayName = this.userProfile.username;
-          } else {
-            this.displayName = this.userName;
-          }
+          // Cache the profile data
+          sessionStorage.setItem('userProfile', JSON.stringify(data.profile));
 
-          // Update avatarUrl untuk fallback
+          this.updateDisplayName();
           this.avatarUrl = this.getAvatarUrl();
 
         } else if (response.status === 404) {
@@ -280,6 +277,44 @@ export default {
         this.userProfile = null;
         this.displayName = this.userName;
         this.avatarUrl = '/image/hajisodikin.jpg';
+      }
+    },
+
+    updateDisplayName() {
+      console.log('🔄 Updating display name...');
+      console.log('📋 userProfile:', this.userProfile);
+      console.log('📋 userName:', this.userName);
+      
+      // Set display name: prioritas fullname dari profile, fallback ke name dari users
+      if (this.userProfile && this.userProfile.fullname) {
+        this.displayName = this.userProfile.fullname;
+        console.log('✅ Using fullname from profile:', this.userProfile.fullname);
+        
+        // Update localStorage user data juga
+        this.updateLocalStorageUser();
+      } else if (this.userProfile && this.userProfile.username) {
+        this.displayName = this.userProfile.username;
+        console.log('✅ Using username from profile:', this.userProfile.username);
+      } else {
+        this.displayName = this.userName;
+        console.log('✅ Using name from users table:', this.userName);
+      }
+      
+      console.log('🎯 Final displayName:', this.displayName);
+    },
+
+    updateLocalStorageUser() {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData && this.userProfile) {
+          const user = JSON.parse(userData);
+          user.name = this.userProfile.fullname || user.name;
+          user.email = this.userProfile.email || user.email;
+          localStorage.setItem('user', JSON.stringify(user));
+          console.log('💾 Updated localStorage user data:', user);
+        }
+      } catch (e) {
+        console.error('Error updating localStorage user data:', e);
       }
     },
 

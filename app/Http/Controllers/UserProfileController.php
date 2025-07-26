@@ -117,6 +117,15 @@ class UserProfileController extends Controller
     {
         $user = Auth::user();
 
+        // Debug: log semua data yang diterima
+        Log::info('Profile update request data:', [
+            'all_data' => $request->all(),
+            'fullname' => $request->input('fullname'),
+            'email' => $request->input('email'),
+            'has_avatar' => $request->hasFile('avatar'),
+            'user_id' => $user->id
+        ]);
+
         // Temukan profil atau buat yang baru jika belum ada
         $profile = $user->profile;
         if (!$profile) {
@@ -214,8 +223,42 @@ class UserProfileController extends Controller
         $user->password = Hash::make($request->new_password);
         $user->save();
 
-        return response()->json(['message' => 'Password berhasil diubah.']);
+        return response()->json(['message' => 'Password berhasil diubah!']);
     }
-    // Tambahkan route: GET /api/user/profile
+
+    public function removeAvatar()
+    {
+        try {
+            $user = Auth::user();
+            $profile = $user->profile;
+
+            if (!$profile) {
+                return response()->json(['message' => 'Profil tidak ditemukan.'], 404);
+            }
+
+            // Hapus file avatar dari storage
+            if ($profile->avatar && Storage::disk('public')->exists($profile->avatar)) {
+                Storage::disk('public')->delete($profile->avatar);
+            }
+
+            // Update database
+            $profile->avatar = null;
+            $profile->save();
+
+            return response()->json([
+                'message' => 'Avatar berhasil dihapus!',
+                'profile' => $profile
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error removing avatar:', [
+                'user_id' => $user->id ?? 'unknown',
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json(['message' => 'Gagal menghapus avatar.'], 500);
+        }
+    }
 }
 

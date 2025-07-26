@@ -28,7 +28,7 @@ class AuthController extends Controller
         ]);
 
         // Generate token untuk pengguna yang baru terdaftar
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token', ['*'], now()->addDays(7))->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',
@@ -54,8 +54,8 @@ class AuthController extends Controller
             return response()->json(['message' => 'Email atau Password Salah'], 401);
         }
 
-        // Generate token dengan Sanctum
-        $token = $user->createToken('authToken')->plainTextToken;
+        // Generate token dengan Sanctum (expired dalam 7 hari)
+        $token = $user->createToken('authToken', ['*'], now()->addDays(7))->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',

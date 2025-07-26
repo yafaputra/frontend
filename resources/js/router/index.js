@@ -6,6 +6,7 @@ import LearnMore from '../components/learnmore/learnmore.vue';
 import Profil_Pengguna from '../components/user/Profil_Pengguna.vue';
 import Dashboard from '../components/user/Dashboard.vue';
 import Reward from '../components/user/Reward.vue';
+import TanyaMentor from '../components/user/Tanyamentor.vue';
 import About from '../components/About.vue';
 import AdminLogin from '../components/admin/Login.vue';
 import UserLogin from '../components/auth/UserLogin.vue';
@@ -33,6 +34,7 @@ const routes = [
   { path: '/Profil_Pengguna', name: 'ProfilPengguna', component: Profil_Pengguna, meta: { requiresAuth: true } },
   { path: '/Dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } },
   { path: '/Reward', name: 'Reward', component: Reward, meta: { requiresAuth: true } },
+  { path: '/Tanya_Mentor', name: 'Tanya_Mentor', component: TanyaMentor, meta: { requiresAuth: true } },
   { path: '/course/:courseDescriptionId', name: 'CourseContent', component: course_content, meta: { hideLayout: true, requiresAuth: true } },
   { path: '/change-password', name: 'ChangePassword', component: ChangePassword, meta: { requiresAuth: true } },
 ];
@@ -50,10 +52,14 @@ function isAuthenticated() {
 
 // Navigation Guard Global
 router.beforeEach((to, from, next) => {
+  console.log('🛣️ Route change:', { from: from.path, to: to.path });
+  
   // Jika rute butuh login dan user belum login, redirect ke login
   if (to.meta.requiresAuth && !isAuthenticated()) {
+    console.log('🔒 Auth required, redirecting to login');
     next({ name: 'UserLogin' });
   } else {
+    console.log('✅ Route access granted');
     next();
   }
 });

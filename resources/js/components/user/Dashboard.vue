@@ -247,7 +247,7 @@ export default {
     props: {
         user: {
             type: Object,
-            default: () => ({ name: 'User' })
+            default: () => ({ name: '' })
         },
         laravelRoutes: {
             type: Object,
@@ -306,8 +306,7 @@ export default {
     },
     computed: {
         userName() {
-            const userData = this.getUserData();
-            return userData?.name || this.user.name || 'User';
+            return this.getUserName();
         },
         avatarUrl() {
             return this.assetBaseUrl + 'image/hajisodikin.jpg';
@@ -351,96 +350,40 @@ export default {
         window.removeEventListener('scroll', this.handleScroll);
     },
     methods: {
-        getUserData() {
+        getUserName() {
             try {
-                const userDataString = localStorage.getItem('user_data');
-                return userDataString ? JSON.parse(userDataString) : null;
-            } catch (error) {
-                console.error('Error parsing user data:', error);
-                return null;
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    return user.name || 'Pengguna';
+                }
+            } catch (e) {
+                console.error('Error getting user name:', e);
             }
+            return 'Pengguna';
         },
-
         async loadPurchasedCourses() {
-            const userData = this.getUserData();
-            const token = localStorage.getItem('auth_token');
-
-            if (!userData || !token) {
-                this.loading = false;
-                this.updateEmptyStateNotifications();
-                return;
-            }
-
             try {
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-                const response = await axios.get('http://localhost:8000/api/payment/user-payments', {
-                    params: {
-                        user_profile_id: userData.id
-                    }
-                });
-
-                console.log('User payments:', response.data);
-
-                // Filter pembayaran yang sukses dan ambil detail course
-                const successfulPayments = response.data.payments.filter(payment =>
-                    payment.status === 'success'
-                );
-
-                if (successfulPayments.length === 0) {
-                    this.purchasedCourses = [];
-                    this.activeProgram = null;
-                    this.updateEmptyStateNotifications();
-                    this.loading = false;
+                const token = localStorage.getItem('authToken');
+                if (!token) {
+                    console.log('No token found, skipping course load');
                     return;
                 }
 
-                // Ambil detail course untuk setiap pembayaran sukses
-                this.purchasedCourses = await Promise.all(
-                    successfulPayments.map(async (payment) => {
-                        try {
-                            const courseResponse = await axios.get(`http://localhost:8000/api/courses/${payment.course_id}`);
-                            return {
-                                ...courseResponse.data,
-                                purchased_at: payment.created_at,
-                                payment_id: payment.id
-                            };
-                        } catch (error) {
-                            console.error(`Error fetching course ${payment.course_id}:`, error);
-                            return null;
-                        }
-                    })
-                );
+                const response = await axios.get('/api/my-courses', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
 
-                // Filter out null values
-                this.purchasedCourses = this.purchasedCourses.filter(course => course !== null);
-
-                // Set active program sebagai course terbaru yang dibeli
+                this.purchasedCourses = response.data.courses || [];
+                
+                // Set active program (course terakhir yang dibeli)
                 if (this.purchasedCourses.length > 0) {
-                    this.activeProgram = this.purchasedCourses.sort((a, b) =>
-                        new Date(b.purchased_at) - new Date(a.purchased_at)
-                    )[0];
-
-                    // Update notifications untuk user yang sudah punya course
-                    this.updatePurchasedStateNotifications();
-                } else {
-                    this.activeProgram = null;
-                    this.updateEmptyStateNotifications();
+                    this.activeProgram = this.purchasedCourses[this.purchasedCourses.length - 1];
                 }
-
-                console.log('Purchased courses:', this.purchasedCourses);
-                console.log('Active program:', this.activeProgram);
 
             } catch (error) {
                 console.error('Error loading purchased courses:', error);
-
-                // Jika unauthorized, hapus token dan user data
-                if (error.response?.status === 401) {
-                    localStorage.removeItem('auth_token');
-                    localStorage.removeItem('user_data');
-                }
-
-                this.updateEmptyStateNotifications();
+                this.purchasedCourses = [];
             } finally {
                 this.loading = false;
             }

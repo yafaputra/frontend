@@ -15,7 +15,7 @@
                class="w-28 h-28 md:w-32 md:h-32 rounded-full border-5 border-purple-600 shadow-lg object-cover">
           <div>
             <div class="font-bold text-purple-800 text-2xl md:text-3xl flex items-center gap-4">
-              {{ formData.fullname || 'User' }}
+              {{ formData.fullname || getUserName() }}
               <span class="bg-yellow-200 text-yellow-800 text-base px-4 py-1.5 rounded-full badge-animate">Gen Z Squad 🦄</span>
             </div>
             <div class="text-base text-gray-500 mt-2">Aktif belajar sejak {{ userCreatedAtYear }}</div>
@@ -23,6 +23,12 @@
               Ganti Foto Profil
               <input type="file" id="avatarInput" name="avatar" class="hidden" accept="image/*" @change="handleAvatarChange">
             </label>
+            <button v-if="formData.avatar || currentAvatarPreviewUrl !== '/image/hajisodikin.jpg'" 
+                    @click="removeAvatar" 
+                    type="button"
+                    class="text-red-600 text-base hover:underline cursor-pointer mt-2 block">
+              Hapus Foto Profil
+            </button>
           </div>
         </div>
 
@@ -224,7 +230,7 @@ export default {
 
       console.log('🔑 Fetching profile with token:', authToken);
 
-      const response = await axios.get('http://localhost:8000/api/user/profile', {
+      const response = await axios.get('/api/profile', {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json',
@@ -251,9 +257,14 @@ export default {
       this.formData.progress = profile.progress ?? 60;
       this.formData.badges = profile.badges || [];
 
+      // Debug: log populated formData
+      console.log('📋 Populated formData:', this.formData);
+      console.log('📋 fullname after populate:', this.formData.fullname);
+      console.log('📋 email after populate:', this.formData.email);
+
       // Set avatar URL
       if (profile.avatar) {
-        this.currentAvatarPreviewUrl = `http://localhost:8000/storage/${profile.avatar}`;
+        this.currentAvatarPreviewUrl = `/storage/${profile.avatar}`;
       } else {
         this.currentAvatarPreviewUrl = '/image/hajisodikin.jpg';
       }
@@ -293,6 +304,19 @@ export default {
       return;
     }
 
+    // *** Validasi field required ***
+    if (!this.formData.fullname || this.formData.fullname.trim() === '') {
+      this.errorMessage = 'Nama lengkap harus diisi.';
+      this.isSaving = false;
+      return;
+    }
+
+    if (!this.formData.email || this.formData.email.trim() === '') {
+      this.errorMessage = 'Email harus diisi.';
+      this.isSaving = false;
+      return;
+    }
+
     // Append all form data
     for (const key in this.formData) {
       if (key === 'hobbies' && Array.isArray(this.formData.hobbies)) {
@@ -301,11 +325,36 @@ export default {
         });
       } else if (key === 'avatar' && this.formData.avatar instanceof File) {
         dataToSubmit.append(key, this.formData.avatar);
-      } else if (this.formData[key] !== null && this.formData[key] !== undefined && key !== 'badges') {
-        dataToSubmit.append(key, this.formData[key]);
+      } else if (key !== 'badges') {
+        // Pastikan field required selalu terkirim
+        const value = this.formData[key];
+        if (value !== null && value !== undefined) {
+          dataToSubmit.append(key, value);
+        }
       }
     }
+
+    // Pastikan field required selalu ada
+    if (!dataToSubmit.has('fullname')) {
+      dataToSubmit.append('fullname', this.formData.fullname || '');
+    }
+    if (!dataToSubmit.has('email')) {
+      dataToSubmit.append('email', this.formData.email || '');
+    }
+
+    // Tambahkan _method untuk Laravel method spoofing
     dataToSubmit.append('_method', 'PUT');
+
+    // Debug: log FormData contents
+    console.log('📤 FormData contents:');
+    for (let [key, value] of dataToSubmit.entries()) {
+      console.log(`${key}:`, value);
+    }
+
+    // Debug: log formData object
+    console.log('📋 formData object:', this.formData);
+    console.log('📋 fullname value:', this.formData.fullname);
+    console.log('📋 email value:', this.formData.email);
 
     try {
       const authToken = localStorage.getItem('authToken');
@@ -315,7 +364,8 @@ export default {
         return;
       }
 
-      const response = await axios.post('http://localhost:8000/api/user/profile', dataToSubmit, {
+      console.log('🚀 Sending request to /api/user/profile with method POST');
+      const response = await axios.post('/api/user/profile', dataToSubmit, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'multipart/form-data'
@@ -343,6 +393,20 @@ export default {
         localStorage.setItem('user', JSON.stringify(currentUserData));
         window.dispatchEvent(new Event('localStorageUpdated'));
       }
+
+      // Dispatch event untuk update navbar dan clear cache
+      window.dispatchEvent(new Event('profileUpdated'));
+      
+      // Clear sessionStorage cache untuk memaksa navbar reload data
+      sessionStorage.removeItem('userProfile');
+
+      // Tampilkan pesan sukses dan refresh halaman
+      this.successMessage = 'Profil berhasil diperbarui! Halaman akan di-refresh dalam 1 detik...';
+
+      // Refresh halaman setelah 1 detik untuk memastikan semua perubahan terlihat
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
 
     } catch (error) {
       console.error('❌ Error submitting profile:', error);
@@ -381,6 +445,99 @@ export default {
           return 'bg-yellow-200 text-yellow-800 badge-animate';
         default:
           return 'bg-gray-100 text-gray-700';
+      }
+    },
+    getUserName() {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          return user.name || 'Pengguna';
+        }
+      } catch (e) {
+        console.error('Error getting user name:', e);
+      }
+      return 'Pengguna';
+    },
+    handleAvatarChange(event) {
+      const file = event.target.files[0];
+      if (file) {
+        // Validasi file
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/svg+xml'];
+        const maxSize = 2 * 1024 * 1024; // 2MB
+
+        if (!validTypes.includes(file.type)) {
+          this.errorMessage = 'Format file tidak didukung. Gunakan JPEG, PNG, JPG, GIF, atau SVG.';
+          event.target.value = '';
+          return;
+        }
+
+        if (file.size > maxSize) {
+          this.errorMessage = 'Ukuran file terlalu besar. Maksimal 2MB.';
+          event.target.value = '';
+          return;
+        }
+
+        // Simpan file untuk upload
+        this.formData.avatar = file;
+
+        // Buat preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.currentAvatarPreviewUrl = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // Clear error message jika ada
+        this.errorMessage = '';
+      }
+    },
+    async removeAvatar() {
+      if (!confirm('Apakah Anda yakin ingin menghapus foto profil?')) {
+        return;
+      }
+
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          this.errorMessage = 'Autentikasi diperlukan.';
+          this.$router.push('/login');
+          return;
+        }
+
+        const response = await axios.delete('/api/user/profile/avatar', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        // Reset avatar di UI
+        this.formData.avatar = null;
+        this.currentAvatarPreviewUrl = '/image/hajisodikin.jpg';
+        
+        // Clear file input
+        const fileInput = document.getElementById('avatarInput');
+        if (fileInput) {
+          fileInput.value = '';
+        }
+
+        this.successMessage = response.data.message || 'Foto profil berhasil dihapus!';
+
+        // Dispatch event untuk update navbar
+        window.dispatchEvent(new Event('profileUpdated'));
+
+        // Tampilkan pesan sukses dan refresh halaman
+        this.successMessage = 'Foto profil berhasil dihapus! Halaman akan di-refresh dalam 1 detik...';
+
+        // Refresh halaman setelah 1 detik
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+
+      } catch (error) {
+        console.error('Error removing avatar:', error);
+        this.errorMessage = error.response?.data?.message || 'Gagal menghapus foto profil.';
       }
     }
   }

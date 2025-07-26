@@ -24,9 +24,7 @@
 </head>
 <body>
     <div id="app">
-        <navbar></navbar>
-        <home-page></home-page>
-        <footer-bar></footer-bar>
+        <!-- Vue Router akan menangani rendering komponen -->
     </div>
 <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
 

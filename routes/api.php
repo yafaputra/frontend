@@ -45,9 +45,13 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // User Profile Routes
+    Route::get('/profile', [UserProfileController::class, 'show']); // Alias untuk /api/profile
+    Route::put('/profile', [UserProfileController::class, 'update']); // Alias untuk PUT /api/profile
+    Route::post('/profile', [UserProfileController::class, 'update']); // Alias untuk POST /api/profile
     Route::get('/user/profile', [UserProfileController::class, 'show']);
     Route::put('/user/profile', [UserProfileController::class, 'update']);
     Route::post('/user/profile', [UserProfileController::class, 'update']); // Support both PUT & POST
+    Route::delete('/user/profile/avatar', [UserProfileController::class, 'removeAvatar']); // Hapus avatar
     Route::post('/user/change-password', [UserProfileController::class, 'changePassword']);
 
     // Method khusus untuk payment (jika diperlukan)
@@ -63,6 +67,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Chat Routes
+    Route::prefix('chat')->group(function () {
+        Route::get('/messages', [\App\Http\Controllers\ChatController::class, 'getMessages']);
+        Route::post('/send', [\App\Http\Controllers\ChatController::class, 'sendMessage']);
+        Route::post('/mark-read', [\App\Http\Controllers\ChatController::class, 'markAsRead']);
+        Route::get('/unread-count', [\App\Http\Controllers\ChatController::class, 'getUnreadCount']);
+    });
 
     // Protected Course Content Routes (jika diperlukan autentikasi untuk akses konten)
     Route::prefix('protected/course-content')->group(function () {
