@@ -281,69 +281,123 @@ export default {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
-    toggleComplete() {
-      if (!this.currentMateri) return;
 
-      const slug = this.currentMateri.slug;
-      const index = this.completedMateris.indexOf(slug);
+   saveProgress() {
+    // PERBAIKAN: Pastikan ID konsisten
+    const courseId = this.courseDescriptionId;
+    const progressKey = `course_progress_${courseId}`;
 
-      if (index > -1) {
+    const progressData = {
+        completedMateris: this.completedMateris,
+        currentMateri: this.currentMateri?.slug || null,
+        lastUpdated: new Date().toISOString(),
+        // TAMBAHAN: Data untuk kompatibilitas dengan Dashboard
+        course_id: courseId,
+        total_materials: this.courseData.materis?.length || 0,
+        completed_count: this.completedMateris.length
+    };
+
+    try {
+        localStorage.setItem(progressKey, JSON.stringify(progressData));
+
+        // TAMBAHAN: Trigger event untuk notify Dashboard jika ada
+        window.dispatchEvent(new CustomEvent('courseProgressUpdated', {
+            detail: {
+                courseId: courseId,
+                progress: progressData
+            }
+        }));
+
+        console.log('Progress saved:', progressData);
+    } catch (error) {
+        console.error('Error saving progress:', error);
+    }
+},
+
+
+
+loadProgress() {
+    const courseId = this.courseDescriptionId;
+    const progressKey = `course_progress_${courseId}`;
+
+    try {
+        const savedProgress = localStorage.getItem(progressKey);
+        if (savedProgress) {
+            const progressData = JSON.parse(savedProgress);
+            this.completedMateris = progressData.completedMateris || [];
+
+            // Restore current material if saved and materials are loaded
+            if (progressData.currentMateri && this.courseData.materis && this.courseData.materis.length > 0) {
+                const savedMateri = this.courseData.materis.find(m => m.slug === progressData.currentMateri);
+                if (savedMateri) {
+                    this.currentMateri = savedMateri;
+                }
+            }
+
+            console.log('Progress loaded:', progressData);
+        }
+    } catch (error) {
+        console.error('Error loading progress:', error);
+    }
+},
+toggleComplete() {
+    if (!this.currentMateri) return;
+
+    const slug = this.currentMateri.slug;
+    const index = this.completedMateris.indexOf(slug);
+
+    if (index > -1) {
         // Remove from completed
         this.completedMateris.splice(index, 1);
-      } else {
+    } else {
         // Add to completed
         this.completedMateris.push(slug);
 
+        // TAMBAHAN: Show completion feedback
+        this.$nextTick(() => {
+            // Scroll ke tombol untuk visual feedback
+            const button = event.target;
+            if (button) {
+                button.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    button.style.transform = 'scale(1)';
+                }, 200);
+            }
+        });
+
         // Auto-navigate to next material if available
         if (this.nextMateri) {
-          setTimeout(() => {
-            this.selectMateri(this.nextMateri);
-          }, 500);
+            setTimeout(() => {
+                this.selectMateri(this.nextMateri);
+            }, 800); // Increased delay untuk better UX
         }
-      }
+    }
 
-      this.saveProgress();
-    },
+    // PERBAIKAN: Save progress setelah update
+    this.saveProgress();
 
-    saveProgress() {
-      const progressKey = `course_progress_${this.courseDescriptionId}`;
-      const progressData = {
-        completedMateris: this.completedMateris,
-        currentMateri: this.currentMateri?.slug || null,
-        lastUpdated: new Date().toISOString()
-      };
+    // TAMBAHAN: Log untuk debugging
+    console.log(`📝 Material ${this.isCurrentMateriCompleted ? 'completed' : 'uncompleted'}: ${slug}`);
+    console.log(`📊 Total completed: ${this.completedMateris.length}/${this.courseData.materis?.length || 0}`);
+},
 
-      try {
-        localStorage.setItem(progressKey, JSON.stringify(progressData));
-        console.log('Progress saved:', progressData);
-      } catch (error) {
-        console.error('Error saving progress:', error);
-      }
-    },
+// TAMBAHAN: Method untuk manual sync dengan Dashboard
+syncProgressWithDashboard() {
+    const progressData = {
+        courseId: this.courseDescriptionId,
+        completed: this.completedMateris.length,
+        total: this.courseData.materis?.length || 0,
+        percentage: this.progress,
+        completedMateris: this.completedMateris
+    };
 
-    loadProgress() {
-      const progressKey = `course_progress_${this.courseDescriptionId}`;
+    // Broadcast event
+    window.dispatchEvent(new CustomEvent('courseProgressSync', {
+        detail: progressData
+    }));
 
-      try {
-        const savedProgress = localStorage.getItem(progressKey);
-        if (savedProgress) {
-          const progressData = JSON.parse(savedProgress);
-          this.completedMateris = progressData.completedMateris || [];
-
-          // Restore current material if saved and materials are loaded
-          if (progressData.currentMateri && this.courseData.materis && this.courseData.materis.length > 0) {
-            const savedMateri = this.courseData.materis.find(m => m.slug === progressData.currentMateri);
-            if (savedMateri) {
-              this.currentMateri = savedMateri;
-            }
-          }
-
-          console.log('Progress loaded:', progressData);
-        }
-      } catch (error) {
-        console.error('Error loading progress:', error);
-      }
-    },
+    console.log('🔄 Progress synced with Dashboard:', progressData);
+},
 
     async retryLoad() {
       await this.loadCourseContent();

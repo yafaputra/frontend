@@ -12,7 +12,6 @@ use Filament\Tables;
 use Filament\Tables\Table as FilamentTable;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Card;
 use Filament\Forms\Get;
 use Illuminate\Support\Str;
 
@@ -29,7 +28,7 @@ class CourseContentResource extends Resource
         return $form
             ->schema([
                 Section::make('Course Information')
-                    ->description('Select the course and add multiple materials at once')
+                    ->description('Create course content with multiple materials')
                     ->schema([
                         Forms\Components\Select::make('course_description_id')
                             ->label('Course Description')
@@ -42,6 +41,8 @@ class CourseContentResource extends Resource
                                     $course = CourseDescriptions::find($state);
                                     if ($course) {
                                         $set('course_title', $course->title);
+                                        // Auto generate slug from course title
+                                        $set('slug', Str::slug($course->title));
                                     }
                                 }
                             }),
@@ -51,6 +52,12 @@ class CourseContentResource extends Resource
                             ->required()
                             ->disabled()
                             ->dehydrated(),
+
+                        Forms\Components\TextInput::make('slug')
+                            ->label('Course Slug')
+                            ->required()
+                            ->unique(CourseContent::class, 'slug', ignoreRecord: true)
+                            ->helperText('Unique identifier for this course content'),
                     ])
                     ->columns(2),
 
@@ -62,26 +69,18 @@ class CourseContentResource extends Resource
                             ->schema([
                                 Forms\Components\Grid::make(2)
                                     ->schema([
-                                       Forms\Components\TextInput::make('judul')
+                                        Forms\Components\TextInput::make('judul')
                                             ->label('Material Title')
-                                            ->required()
-                                            ->live(debounce: 500) // Beri jeda 500ms sebelum update
-                                            ->afterStateUpdated(function ($state, Forms\Set $set, Get $get) {
-                                                if ($state && !$get('slug')) { // Hanya generate slug jika slug kosong
-                                                    $slug = Str::slug($state);
-                                                    $courseTitle = $get('../../course_title');
-                                                    if ($courseTitle) {
-                                                        $slug = Str::slug($courseTitle) . '-' . $slug;
-                                                    }
-                                                    $set('slug', $slug);
-                                                }
-                                            }),
+                                            ->required(),
 
-                                        Forms\Components\TextInput::make('slug')
-                                            ->label('Slug')
-                                            ->required()
-                                            ->unique(CourseContent::class, 'slug', ignoreRecord: true)
-                                            ->helperText('Auto-generated from title, you can modify if needed'),
+                                        Forms\Components\TextInput::make('urutan')
+                                            ->label('Order')
+                                            ->numeric()
+                                            ->default(function (Get $get) {
+                                                $materials = $get('../../materials') ?? [];
+                                                return count($materials) + 1;
+                                            })
+                                            ->helperText('Material order in the course'),
                                     ]),
 
                                 Forms\Components\RichEditor::make('konten')
@@ -104,16 +103,6 @@ class CourseContentResource extends Resource
                                         'underline',
                                         'undo',
                                     ]),
-
-                                Forms\Components\TextInput::make('urutan')
-                                    ->label('Order')
-                                    ->numeric()
-                                    ->default(function (Get $get) {
-                                        // Auto increment order based on existing materials
-                                        $materials = $get('../../materials') ?? [];
-                                        return count($materials) + 1;
-                                    })
-                                    ->helperText('Material order in the course'),
                             ])
                             ->collapsed()
                             ->cloneable()
@@ -126,6 +115,7 @@ class CourseContentResource extends Resource
                             ->minItems(1)
                             ->maxItems(50)
                             ->grid(1)
+                            ->orderColumn('urutan')
                     ])
             ]);
     }
@@ -140,20 +130,27 @@ class CourseContentResource extends Resource
                     ->sortable()
                     ->wrap(),
 
-                Tables\Columns\TextColumn::make('judul')
-                    ->label('Material Title')
+                Tables\Columns\TextColumn::make('course_title')
+                    ->label('Course Title')
                     ->searchable()
                     ->wrap(),
 
                 Tables\Columns\TextColumn::make('slug')
                     ->label('Slug')
                     ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->copyable(),
 
-                Tables\Columns\TextColumn::make('urutan')
-                    ->label('Order')
-                    ->sortable()
-                    ->alignCenter(),
+                Tables\Columns\TextColumn::make('materials_count')
+                    ->label('Materials Count')
+                    ->getStateUsing(function ($record) {
+                        $materials = is_string($record->materials)
+                            ? json_decode($record->materials, true)
+                            : $record->materials;
+                        return is_array($materials) ? count($materials) : 0;
+                    })
+                    ->alignCenter()
+                    ->badge()
+                    ->color('success'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created')
@@ -185,8 +182,7 @@ class CourseContentResource extends Resource
                         ->requiresConfirmation(),
                 ]),
             ])
-            ->defaultSort('course_description_id', 'asc')
-            ->defaultSort('urutan', 'asc');
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array

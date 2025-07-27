@@ -3,13 +3,12 @@
 namespace App\Filament\Resources\CourseContentResource\Pages;
 
 use App\Filament\Resources\CourseContentResource;
-use App\Models\CourseContent;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists\Infolist;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\Tabs;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Support\Enums\FontWeight;
 
 class ViewCourseContent extends ViewRecord
@@ -37,6 +36,10 @@ class ViewCourseContent extends ViewRecord
                         TextEntry::make('course_title')
                             ->label('Internal Course Title'),
 
+                        TextEntry::make('slug')
+                            ->label('Slug')
+                            ->copyable(),
+
                         TextEntry::make('created_at')
                             ->label('Created At')
                             ->dateTime(),
@@ -47,55 +50,69 @@ class ViewCourseContent extends ViewRecord
                     ])
                     ->columns(2),
 
-                Section::make('Material Details')
+                Section::make('Course Materials')
                     ->schema([
-                        TextEntry::make('judul')
-                            ->label('Material Title')
-                            ->weight(FontWeight::Bold),
+                        RepeatableEntry::make('materials')
+                            ->label('')
+                            ->schema([
+                                TextEntry::make('judul')
+                                    ->label('Title')
+                                    ->weight(FontWeight::Bold),
 
-                        TextEntry::make('slug')
-                            ->label('Slug')
-                            ->copyable(),
+                                TextEntry::make('urutan')
+                                    ->label('Order')
+                                    ->badge(),
 
-                        TextEntry::make('urutan')
-                            ->label('Order')
-                            ->badge(),
+                                TextEntry::make('konten')
+                                    ->label('Content')
+                                    ->html()
+                                    ->columnSpanFull()
+                                    ->limit(200),
+                            ])
+                            ->columns(2)
+                            ->contained(false)
+                            ->grid(1)
+                    ]),
 
-                        TextEntry::make('konten')
-                            ->label('Content')
-                            ->html()
-                            ->columnSpanFull(),
-                    ])
-                    ->columns(3),
-
-                Section::make('All Course Materials')
+                Section::make('Materials Summary')
                     ->schema([
-                        TextEntry::make('all_materials')
+                        TextEntry::make('materials_summary')
                             ->label('')
                             ->getStateUsing(function ($record) {
-                                $materials = CourseContent::where('course_description_id', $record->course_description_id)
-                                    ->orderBy('urutan')
-                                    ->get();
+                                $materials = is_string($record->materials)
+                                    ? json_decode($record->materials, true)
+                                    : $record->materials;
 
-                                $list = '<div class="space-y-2">';
-                                foreach ($materials as $material) {
-                                    $current = $material->id === $record->id ? 'font-bold text-primary-600' : '';
-                                    $list .= "<div class='p-3 border rounded {$current}'>";
-                                    $list .= "<div class='flex justify-between items-center'>";
-                                    $list .= "<span class='font-medium'>{$material->urutan}. {$material->judul}</span>";
-                                    if ($material->id === $record->id) {
-                                        $list .= "<span class='text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded'>Current</span>";
-                                    }
-                                    $list .= "</div>";
-                                    $list .= "<div class='text-sm text-gray-600 mt-1'>Slug: {$material->slug}</div>";
-                                    $list .= "</div>";
+                                if (!is_array($materials) || empty($materials)) {
+                                    return '<div class="text-gray-500">No materials found</div>';
                                 }
-                                $list .= '</div>';
 
-                                return $list;
+                                $sortedMaterials = collect($materials)->sortBy('urutan');
+                                $summary = '<div class="space-y-2">';
+                                $summary .= '<div class="font-medium text-gray-900">Total Materials: ' . count($materials) . '</div>';
+                                $summary .= '<div class="grid gap-2">';
+
+                                foreach ($sortedMaterials as $material) {
+                                    $summary .= '<div class="p-3 bg-gray-50 rounded border">';
+                                    $summary .= '<div class="flex justify-between items-start">';
+                                    $summary .= '<span class="font-medium">' . ($material['urutan'] ?? 0) . '. ' . ($material['judul'] ?? 'Untitled') . '</span>';
+                                    $summary .= '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Order: ' . ($material['urutan'] ?? 0) . '</span>';
+                                    $summary .= '</div>';
+                                    $contentPreview = strip_tags($material['konten'] ?? '');
+                                    $contentPreview = strlen($contentPreview) > 100 ? substr($contentPreview, 0, 100) . '...' : $contentPreview;
+                                    $summary .= '<div class="text-sm text-gray-600 mt-2">' . $contentPreview . '</div>';
+                                    $summary .= '</div>';
+                                }
+
+                                $summary .= '</div>';
+                                $summary .= '</div>';
+
+                                return $summary;
                             })
                             ->html(),
                     ]),
             ]);
     }
 }
+
+

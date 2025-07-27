@@ -143,3 +143,18 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
     });
 });
+
+
+// Routes yang sudah ada (pastikan sudah ada):
+Route::post('/payment/create-snap-token', [PaymentController::class, 'createSnapToken']);
+Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
+Route::get('/payment/status/{orderId}', [PaymentController::class, 'checkPaymentStatus']);
+Route::post('/payment/check-course-purchase', [PaymentController::class, 'checkCoursePurchase']);
+
+// Route baru yang perlu ditambahkan:
+Route::post('/payment/expire-old-pending', [PaymentController::class, 'expireOldPendingPayments']);
+Route::get('/payment/user-payments', [PaymentController::class, 'getUserPayments']);
+Route::post('/payment/callback', [PaymentController::class, 'midtransCallback']);
+
+// Route untuk cleanup otomatis (opsional, bisa dijadwalkan dengan scheduler)
+Route::post('/payment/cleanup-expired', [PaymentController::class, 'cleanupExpiredPayments']);

@@ -25,6 +25,7 @@ class CourseController extends Controller
                 'id' => $course->id,
                 'title' => $course->courseDescription->title,
                 'instructor' => $course->courseDescription->instructor_name,
+                'video_count' => $course->courseDescription->video_count,
                 'duration' => $course->courseDescription->duration . ' hours',
                 'original' => number_format($course->courseDescription->price, 0, ',', '.'),
                 'price' => number_format($course->courseDescription->price_discount ?? $course->courseDescription->price, 0, ',', '.'),

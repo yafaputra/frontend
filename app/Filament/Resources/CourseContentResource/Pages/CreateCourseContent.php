@@ -4,7 +4,6 @@ namespace App\Filament\Resources\CourseContentResource\Pages;
 
 use App\Filament\Resources\CourseContentResource;
 use App\Models\CourseContent;
-use App\Models\CourseDescriptions;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
@@ -13,62 +12,34 @@ class CreateCourseContent extends CreateRecord
 {
     protected static string $resource = CourseContentResource::class;
 
-    protected static ?string $title = 'Create Course Materials';
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            //
-        ];
-    }
+    protected static ?string $title = 'Create Course Content';
 
     protected function handleRecordCreation(array $data): Model
     {
-        // Extract materials from the form data
-        $materials = $data['materials'] ?? [];
-        $courseDescriptionId = $data['course_description_id'];
-        $courseTitle = $data['course_title'];
-
         // Validate that we have materials
-        if (empty($materials)) {
+        if (empty($data['materials'])) {
             throw new \Exception('At least one material is required');
         }
 
-        $createdMaterials = [];
+        // Sort materials by urutan
+        $materials = collect($data['materials'])->sortBy('urutan')->values()->toArray();
 
-        // Create each material
-        foreach ($materials as $materialData) {
-            $material = CourseContent::create([
-                'course_description_id' => $courseDescriptionId,
-                'course_title' => $courseTitle,
-                'judul' => $materialData['judul'],
-                'slug' => $materialData['slug'],
-                'konten' => $materialData['konten'],
-                'urutan' => $materialData['urutan'] ?? 0,
-            ]);
-
-            $createdMaterials[] = $material;
-        }
+        // Create single course content record with materials as JSON
+        $courseContent = CourseContent::create([
+            'course_description_id' => $data['course_description_id'],
+            'course_title' => $data['course_title'],
+            'slug' => $data['slug'],
+            'materials' => $materials, // This will be cast to JSON by the model
+        ]);
 
         // Send success notification
         Notification::make()
-            ->title('Materials Created Successfully')
-            ->body(count($createdMaterials) . ' materials have been created for this course.')
+            ->title('Course Content Created Successfully')
+            ->body('Course content with ' . count($materials) . ' materials has been created.')
             ->success()
             ->send();
 
-        // Return the first created material (required by Filament)
-        return $createdMaterials[0];
-    }
-
-    protected function getCreatedNotificationTitle(): ?string
-    {
-        return 'Course materials created successfully';
-    }
-
-    protected function getRedirectUrl(): string
-    {
-        return $this->getResource()::getUrl('index');
+        return $courseContent;
     }
 
     protected function mutateFormDataBeforeCreate(array $data): array
@@ -84,5 +55,9 @@ class CreateCourseContent extends CreateRecord
 
         return $data;
     }
-}
 
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+}

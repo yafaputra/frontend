@@ -61,6 +61,7 @@ class CourseDescriptions extends Model
                 'title' => $this->title,
                 'instructor' => $this->instructor_name,
                 'duration' => $this->duration,
+                'video_count' => $this->video_count,
                 'original_price' => $this->price,
                 'price' => $this->price_discount ?? $this->price,
                 'image' => $this->image_url,

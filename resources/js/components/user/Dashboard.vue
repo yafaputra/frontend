@@ -26,29 +26,45 @@
                         v-for="course in purchasedCourses"
                         :key="course.id"
                         class="bg-white shadow-lg rounded-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition-shadow"
+                        :class="{ 'ring-2 ring-purple-400 bg-purple-50': activeProgram && activeProgram.id === course.id }"
                     >
                         <div class="flex items-start gap-4">
-                            <img
-                                :src="getCourseImageUrl(course.image_url)"
-                                :alt="course.title"
-                                class="w-16 h-16 rounded-lg object-cover border-2 border-purple-200"
-                            >
                             <div class="flex-1">
                                 <h3 class="font-bold text-lg text-purple-800 mb-2">{{ course.title }}</h3>
                                 <p class="text-sm text-gray-600 mb-2">
                                     Dibeli: {{ formatDate(course.purchased_at) }}
                                 </p>
-                                <div class="flex items-center gap-2">
+
+                                <!-- Progress untuk course ini -->
+                                <div v-if="courseProgresses[course.id]" class="mb-3">
+                                    <div class="w-full bg-gray-200 h-2 rounded-full">
+                                        <div
+                                            class="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                                            :style="{ width: courseProgresses[course.id].percentage + '%' }"
+                                        ></div>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1">
+                                        {{ courseProgresses[course.id].completed }} dari {{ courseProgresses[course.id].total }} materi selesai
+                                        ({{ Math.round(courseProgresses[course.id].percentage) }}%)
+                                    </p>
+                                </div>
+
+                                <div class="flex items-center gap-2 mb-3">
                                     <span class="inline-block bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-semibold">
                                         ✓ Sudah Dibeli
                                     </span>
+                                    <span v-if="activeProgram && activeProgram.id === course.id"
+                                          class="inline-block bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                                        🔥 Aktif
+                                    </span>
                                 </div>
-                                <a
-                                    :href="'/course/' + course.id"
-                                    class="inline-block mt-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition text-sm"
+
+                                <button
+                                    @click="startLearning(course)"
+                                    class="inline-block bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition text-sm"
                                 >
-                                    Mulai Belajar 🚀
-                                </a>
+                                    {{ activeProgram && activeProgram.id === course.id ? 'Lanjutkan Belajar' : 'Mulai Belajar' }} 🚀
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -90,14 +106,28 @@
                 <div class="bg-white shadow rounded-lg p-6">
                     <h3 class="text-lg font-semibold text-purple-700 flex items-center gap-2">🔥 Program Aktif</h3>
                     <div v-if="activeProgram">
-                        <a :href="'/course/' + activeProgram.id" class="block">
+                        <button @click="startLearning(activeProgram)" class="block w-full text-left">
                             <h4 class="text-xl font-bold text-purple-800 mt-2 hover:text-purple-600 transition">
                                 {{ activeProgram.title }}
                             </h4>
-                        </a>
+                        </button>
                         <p class="text-sm text-gray-500 mt-1">
-                            Dimulai: {{ formatDate(activeProgram.purchased_at) }}
+                            Terakhir dipelajari: {{ formatDate(activeProgram.last_accessed || activeProgram.purchased_at) }}
                         </p>
+
+                        <!-- Progress untuk program aktif -->
+                        <div v-if="currentProgress.total > 0" class="mt-3">
+                            <div class="w-full bg-gray-200 h-3 rounded-full">
+                                <div
+                                    class="bg-gradient-to-r from-purple-500 to-indigo-500 h-3 rounded-full transition-all duration-500"
+                                    :style="{ width: currentProgress.percentage + '%' }"
+                                ></div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1">
+                                {{ currentProgress.completed }}/{{ currentProgress.total }} materi ({{ Math.round(currentProgress.percentage) }}%)
+                            </p>
+                        </div>
+
                         <span class="inline-block mt-2 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">On Fire!</span>
                     </div>
                     <div v-else>
@@ -110,19 +140,24 @@
                 <div class="bg-white shadow rounded-lg p-6">
                     <h3 class="text-lg font-semibold text-purple-700 flex items-center gap-2">📈 Progres Belajar</h3>
                     <div class="w-full bg-gray-200 h-4 rounded-full mt-2 relative overflow-hidden">
-                        <div id="progressBar"
+                        <div
                             class="bg-gradient-to-r from-purple-500 to-indigo-500 h-4 rounded-full transition-all duration-700"
-                            :style="{ width: progress + '%' }"></div>
-                        <span id="progressPercent"
-                            class="absolute right-3 top-0 text-xs font-bold text-purple-700 h-4 flex items-center">{{ progress }}%</span>
+                            :style="{ width: currentProgress.percentage + '%' }"
+                        ></div>
+                        <span
+                            class="absolute right-3 top-0 text-xs font-bold text-purple-700 h-4 flex items-center"
+                        >{{ Math.round(currentProgress.percentage) }}%</span>
                     </div>
                     <p class="text-sm text-gray-600 mt-1">
-                        <span id="progressText">{{ modulSelesai }} dari {{ totalModul }} modul selesai</span>
+                        <span>{{ currentProgress.completed }} dari {{ currentProgress.total }} materi selesai</span>
                         <span class="ml-1">🎯</span>
                     </p>
-                    <button @click="increaseProgress"
-                        class="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition">
-                        Tambah Progress 🚀
+                    <button
+                        v-if="activeProgram"
+                        @click="startLearning(activeProgram)"
+                        class="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition"
+                    >
+                        Lanjutkan Belajar 🚀
                     </button>
                 </div>
 
@@ -156,10 +191,23 @@
                     <div>
                         <h3 class="text-lg font-bold text-purple-800">{{ activeProgram ? activeProgram.title : 'Course Aktif' }}</h3>
                         <p class="text-sm text-gray-600">{{ activeProgram ? 'Lanjutkan pembelajaran' : 'Belum ada course aktif' }}</p>
+                        <div v-if="activeProgram && currentProgress.total > 0" class="mt-2">
+                            <p class="text-xs text-gray-500">Progress: {{ Math.round(currentProgress.percentage) }}%</p>
+                        </div>
                     </div>
-                    <a :href="activeProgram ? '/course/' + activeProgram.id : '/course'"
-                        class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition">
-                        {{ activeProgram ? 'Lanjutkan' : 'Pilih Course' }}
+                    <button
+                        v-if="activeProgram"
+                        @click="startLearning(activeProgram)"
+                        class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition"
+                    >
+                        Lanjutkan
+                    </button>
+                    <a
+                        v-else
+                        href="/course"
+                        class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:scale-105 transition"
+                    >
+                        Pilih Course
                     </a>
                 </div>
 
@@ -259,7 +307,7 @@ export default {
                 logout: '/logout',
                 certificate: '/certificate',
                 course: '/course',
-                tanyaMentor: '/tanya-mentor',
+                tanyaMentor: '/tanya_mentor',
             })
         },
         assetBaseUrl: {
@@ -277,17 +325,15 @@ export default {
             loadAttempts: 0,
             maxLoadAttempts: 3,
 
-            // Progress Data
-            progress: 0,
-            modulSelesai: 0,
-            totalModul: 20,
-            userLevel: 1,
-            levelProgress: 0,
-            userXP: 100,
-
             // Course Data
             purchasedCourses: [],
             activeProgram: null,
+            courseProgresses: {},
+
+            // Progress Data
+            userLevel: 1,
+            levelProgress: 0,
+            userXP: 100,
 
             // Notification Data
             showPurchaseNotification: false,
@@ -327,6 +373,12 @@ export default {
                 month: 'long',
                 year: 'numeric'
             }) + ' - 19:00 WIB';
+        },
+        currentProgress() {
+            if (!this.activeProgram || !this.courseProgresses[this.activeProgram.id]) {
+                return { completed: 0, total: 0, percentage: 0 };
+            }
+            return this.courseProgresses[this.activeProgram.id];
         }
     },
 
@@ -334,7 +386,6 @@ export default {
         console.log('🎯 Dashboard mounted - starting initialization...');
         this.setupAxios();
 
-        // Check for payment success from URL
         const urlParams = new URLSearchParams(window.location.search);
         const paymentSuccess = urlParams.get('payment_success');
         const courseTitle = urlParams.get('course_title');
@@ -343,7 +394,6 @@ export default {
             console.log('💰 Payment success detected from URL');
             this.showSuccessNotification(decodeURIComponent(courseTitle));
 
-            // Delay untuk memberi waktu payment notification diproses
             setTimeout(async () => {
                 await this.loadPurchasedCoursesWithRetry();
             }, 3000);
@@ -351,6 +401,7 @@ export default {
             await this.loadPurchasedCoursesWithRetry();
         }
 
+        this.loadActiveProgram();
         this.updateUserStats();
         window.addEventListener('scroll', this.handleScroll);
     },
@@ -362,16 +413,13 @@ export default {
     methods: {
         // ===== SETUP AXIOS =====
         setupAxios() {
-            // Set base URL jika belum di-set
             if (!axios.defaults.baseURL) {
                 axios.defaults.baseURL = 'http://localhost:8000';
             }
 
-            // Set default headers
             axios.defaults.headers.common['Accept'] = 'application/json';
             axios.defaults.headers.common['Content-Type'] = 'application/json';
 
-            // Set auth token jika ada
             const token = localStorage.getItem('authToken');
             if (token) {
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -405,13 +453,12 @@ export default {
                 try {
                     await this.loadPurchasedCourses();
 
-                    // Jika berhasil dan ada course, keluar dari loop
                     if (this.purchasedCourses.length > 0) {
                         console.log('✅ Courses loaded successfully!');
+                        await this.loadAllCourseProgresses();
                         return;
                     }
 
-                    // Jika tidak ada course tapi payment success, tunggu sebelum retry
                     if (attempt < this.maxLoadAttempts) {
                         console.log(`⏳ No courses found, waiting before retry...`);
                         await this.delay(2000);
@@ -419,7 +466,6 @@ export default {
 
                 } catch (error) {
                     console.error(`❌ Load attempt ${attempt} failed:`, error);
-
                     if (attempt < this.maxLoadAttempts) {
                         await this.delay(1000);
                     }
@@ -445,7 +491,6 @@ export default {
 
                 console.log('✅ Token found, making API request...');
 
-                // FIXED: Menggunakan URL yang konsisten
                 const response = await axios.get('/api/my-courses', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -462,12 +507,7 @@ export default {
                     console.log('✅ Purchased courses loaded:', this.purchasedCourses.length);
 
                     if (this.purchasedCourses.length > 0) {
-                        // Set active program (course terbaru)
-                        this.activeProgram = this.purchasedCourses[0];
-                        console.log('🎯 Active program set:', this.activeProgram);
                         this.updatePurchasedStateNotifications();
-
-                        // Force reactivity update
                         this.$forceUpdate();
                     } else {
                         console.log('📝 No purchased courses found');
@@ -497,13 +537,141 @@ export default {
                     this.activeProgram = null;
                     this.updateEmptyStateNotifications();
                 } else {
-                    // Jika bukan 401, lempar error untuk retry
                     throw error;
                 }
 
             } finally {
                 this.loading = false;
                 console.log('✅ loadPurchasedCourses completed');
+            }
+        },
+
+        // ===== LOAD ALL COURSE PROGRESSES =====
+        async loadAllCourseProgresses() {
+            console.log('📊 Loading progress for all courses...');
+
+            for (const course of this.purchasedCourses) {
+                const progress = await this.loadCourseProgress(course.id);
+                this.$set(this.courseProgresses, course.id, progress);
+            }
+
+            console.log('✅ All course progresses loaded:', this.courseProgresses);
+        },
+
+        // ===== LOAD COURSE PROGRESS =====
+        async loadCourseProgress(courseId) {
+            try {
+                console.log(`📊 Loading progress for course ${courseId}...`);
+
+                const response = await axios.get(`/api/course-content/course/${courseId}`);
+
+                if (response.data.success) {
+                    const courseData = response.data.data;
+                    const materis = courseData.materis || [];
+
+                    if (materis.length === 0) {
+                        console.log(`⚠️ No materials found for course ${courseId}`);
+                        return { completed: 0, total: 0, percentage: 0 };
+                    }
+
+                    const progressKey = `course_progress_${courseId}`;
+                    let completedMateris = [];
+
+                    try {
+                        const savedProgress = localStorage.getItem(progressKey);
+                        if (savedProgress) {
+                            const progressData = JSON.parse(savedProgress);
+                            completedMateris = progressData.completedMateris || [];
+                        }
+                    } catch (e) {
+                        console.error('Error loading progress from localStorage:', e);
+                    }
+
+                    const completed = completedMateris.length;
+                    const total = materis.length;
+                    const percentage = total > 0 ? (completed / total) * 100 : 0;
+
+                    console.log(`✅ Progress loaded for course ${courseId}: ${completed}/${total} (${Math.round(percentage)}%)`);
+
+                    return { completed, total, percentage };
+                } else {
+                    console.error(`❌ Failed to load course content for ${courseId}:`, response.data);
+                    return { completed: 0, total: 0, percentage: 0 };
+                }
+
+            } catch (error) {
+                console.error(`💥 Error loading progress for course ${courseId}:`, error);
+                return { completed: 0, total: 0, percentage: 0 };
+            }
+        },
+
+        // ===== START LEARNING (MAIN FUNCTION) =====
+        async startLearning(course) {
+            console.log('🚀 Starting learning for course:', course.title);
+
+            // Update active program
+            this.activeProgram = course;
+
+            // Update last accessed time
+            this.activeProgram.last_accessed = new Date().toISOString();
+
+            // Save active program to localStorage
+            this.saveActiveProgram();
+
+            // Add notification
+            this.notifications.unshift({
+                id: Date.now(),
+                type: 'Learning',
+                badgeClass: 'inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded mr-2',
+                message: `🚀 Mulai belajar "${course.title}". Semangat belajarnya!`
+            });
+
+            // Update stats
+            this.updateUserStats();
+
+            // Navigate to course content
+            window.location.href = `/course/${course.id}`;
+        },
+
+        // ===== SAVE/LOAD ACTIVE PROGRAM =====
+        saveActiveProgram() {
+            if (this.activeProgram) {
+                try {
+                    localStorage.setItem('active_program', JSON.stringify(this.activeProgram));
+                    console.log('💾 Active program saved to localStorage');
+                } catch (error) {
+                    console.error('Error saving active program:', error);
+                }
+            }
+        },
+
+        loadActiveProgram() {
+            try {
+                const savedProgram = localStorage.getItem('active_program');
+                if (savedProgram) {
+                    const programData = JSON.parse(savedProgram);
+
+                    // Verify that the saved program exists in purchased courses
+                    const existingCourse = this.purchasedCourses.find(course => course.id === programData.id);
+                    if (existingCourse) {
+                        this.activeProgram = existingCourse;
+                        console.log('✅ Active program loaded from localStorage:', this.activeProgram.title);
+                    } else {
+                        console.log('⚠️ Saved active program not found in purchased courses');
+                        localStorage.removeItem('active_program');
+                    }
+                }
+
+                // If no active program and we have courses, set the most recently purchased as active
+                if (!this.activeProgram && this.purchasedCourses.length > 0) {
+                    this.activeProgram = this.purchasedCourses[0];
+                    this.saveActiveProgram();
+                    console.log('🎯 Set most recent course as active program:', this.activeProgram.title);
+                }
+
+            } catch (error) {
+                console.error('Error loading active program:', error);
+                localStorage.removeItem('active_program');
             }
         },
 
@@ -514,7 +682,6 @@ export default {
             this.showPurchaseNotification = true;
             this.latestPurchasedCourse = courseTitle;
 
-            // Tambah notifikasi ke daftar
             this.notifications.unshift({
                 id: Date.now(),
                 type: 'Baru',
@@ -522,7 +689,6 @@ export default {
                 message: `🎉 Selamat! Kamu berhasil membeli "${courseTitle}". Selamat belajar!`
             });
 
-            // Update stats
             this.updateUserStats();
         },
 
@@ -530,7 +696,6 @@ export default {
         dismissNotification() {
             this.showPurchaseNotification = false;
 
-            // Hapus parameter dari URL
             const url = new URL(window.location);
             url.searchParams.delete('payment_success');
             url.searchParams.delete('course_title');
@@ -586,27 +751,36 @@ export default {
 
         // ===== UPDATE USER STATS =====
         updateUserStats() {
-            // Update stats berdasarkan jumlah course yang dibeli
+            // Calculate total progress from all courses
+            let totalCompleted = 0;
+            let totalMaterials = 0;
+
+            Object.values(this.courseProgresses).forEach(progress => {
+                totalCompleted += progress.completed;
+                totalMaterials += progress.total;
+            });
+
+            // Update XP based on courses and progress
             const baseXP = 100;
             const courseBonus = this.purchasedCourses.length * 200;
-            const progressBonus = this.modulSelesai * 50;
+            const progressBonus = totalCompleted * 50;
 
             this.userXP = baseXP + courseBonus + progressBonus;
 
-            // Update level berdasarkan XP
+            // Update level based on XP
             this.userLevel = Math.floor(this.userXP / 500) + 1;
             const currentLevelXP = (this.userLevel - 1) * 500;
             const nextLevelXP = this.userLevel * 500;
             this.levelProgress = Math.floor(((this.userXP - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100);
 
-            // Update progress berdasarkan course yang dibeli
-            if (this.purchasedCourses.length > 0) {
-                this.modulSelesai = Math.max(this.modulSelesai, 2);
-                this.progress = Math.round((this.modulSelesai / this.totalModul) * 100);
-            } else {
-                this.modulSelesai = 0;
-                this.progress = 0;
-            }
+            console.log('📊 Stats updated:', {
+                courses: this.purchasedCourses.length,
+                totalCompleted,
+                totalMaterials,
+                userXP: this.userXP,
+                userLevel: this.userLevel,
+                levelProgress: this.levelProgress
+            });
         },
 
         // ===== HELPER METHODS =====
@@ -632,26 +806,6 @@ export default {
                 month: 'long',
                 year: 'numeric'
             });
-        },
-
-        increaseProgress() {
-            if (this.progress < 100 && this.purchasedCourses.length > 0) {
-                this.modulSelesai++;
-                this.progress = Math.round((this.modulSelesai / this.totalModul) * 100);
-                if (this.progress > 100) this.progress = 100;
-
-                // Update XP saat progress bertambah
-                this.userXP += 50;
-                this.updateUserStats();
-
-                // Tambah notifikasi progress
-                this.notifications.unshift({
-                    id: Date.now(),
-                    type: 'Progress',
-                    badgeClass: 'inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded mr-2',
-                    message: `🎯 Selamat! Kamu berhasil menyelesaikan modul ke-${this.modulSelesai}. Keep going!`
-                });
-            }
         },
 
         handleScroll() {
@@ -713,6 +867,34 @@ export default {
                 return { error: error.message };
             }
         }
+    },
+
+    // ===== WATCHERS =====
+    watch: {
+        // Watch for changes in purchased courses to update active program
+        purchasedCourses: {
+            handler(newCourses) {
+                if (newCourses.length > 0 && !this.activeProgram) {
+                    // Set the first course as active if no active program exists
+                    this.activeProgram = newCourses[0];
+                    this.saveActiveProgram();
+                }
+
+                // Load progress for all courses when courses change
+                this.loadAllCourseProgresses();
+            },
+            deep: true
+        },
+
+        // Watch for changes in active program
+        activeProgram: {
+            handler(newProgram) {
+                if (newProgram) {
+                    this.saveActiveProgram();
+                }
+            },
+            deep: true
+        }
     }
 };
 </script>
@@ -771,5 +953,15 @@ export default {
 /* Loading animation */
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* Course card active state */
+.ring-2 {
+    box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.4);
+}
+
+/* Progress bar animations */
+.transition-all {
+    transition: all 0.5s ease-in-out;
 }
 </style>

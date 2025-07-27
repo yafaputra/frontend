@@ -8,19 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('course_content', function (Blueprint $table) {
-            $table->id();
+             Schema::create('course_contents', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('course_description_id')->constrained('course_description')->onDelete('cascade');
+                $table->string('course_title');
+                $table->string('slug')->unique();
+                $table->json('materials'); // Store materials as JSON array
+                $table->timestamps();
 
-            // Foreign key ke table course_description
-            $table->foreignId('course_description_id')->constrained('course_description')->onDelete('cascade');
-
-            $table->string('course_title');           // Contoh: Belajar Laravel
-            $table->string('slug')->unique();         // Contoh: pengenalan-laravel
-            $table->string('judul');                  // Judul materi
-            $table->text('konten');                   // Konten materi (HTML)
-            $table->integer('urutan')->default(0);    // Urutan materi
-            $table->timestamps();                     // created_at dan updated_at
-        });
+                // Index untuk performa
+                $table->index('course_description_id');
+                $table->index('slug');
+            });
     }
 
     public function down(): void

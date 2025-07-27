@@ -69,7 +69,7 @@ class PaymentController extends Controller
                 ->where('user_profile_id', $userProfileId)
                 ->where('course_id', $courseId)
                 ->where('status', 'pending')
-                ->where('created_at', '>', now()->subMinutes(30)) // Hanya cek pending yang dibuat dalam 30 menit terakhir
+                ->where('created_at', '>', now()->subSeconds(5)) // Hanya cek pending yang dibuat dalam 30 menit terakhir
                 ->first();
 
             if ($existingPendingPayment) {

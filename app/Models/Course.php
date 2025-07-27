@@ -13,6 +13,7 @@ class Course extends Model
         'course_description_id',
         'title',
         'instructor',
+        'video_count',
         'duration',
         'original_price',
         'price',
