@@ -52,6 +52,9 @@
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
+            <p class="text-xs text-gray-500 mt-1">
+              {{ completedMateris.length }} dari {{ courseData.totalMateris }} selesai
+            </p>
           </div>
         </div>
 
@@ -150,6 +153,29 @@
               <span class="text-green-600 font-semibold">🎉 Course Selesai!</span>
             </div>
           </div>
+
+          <!-- Course Completion Celebration -->
+          <div v-if="isCourseCompleted" class="mt-6 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg p-6 text-center">
+            <div class="text-6xl mb-4">🎊</div>
+            <h2 class="text-2xl font-bold text-green-800 mb-2">Selamat! Kamu Telah Menyelesaikan Course!</h2>
+            <p class="text-gray-700 mb-4">
+              Kamu telah menyelesaikan <strong>{{ courseData.courseDescription?.title }}</strong>
+            </p>
+            <div class="flex gap-3 justify-center">
+              <router-link
+                to="/Dashboard"
+                class="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition"
+              >
+                Kembali ke Dashboard
+              </router-link>
+              <a
+                href="/certificate"
+                class="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+              >
+                Lihat Sertifikat
+              </a>
+            </div>
+          </div>
         </div>
 
         <!-- No Material Selected -->
@@ -192,6 +218,11 @@ export default {
     progress() {
       if (!this.courseData.materis || this.courseData.materis.length === 0) return 0;
       return (this.completedMateris.length / this.courseData.materis.length) * 100;
+    },
+    isCourseCompleted() {
+      return this.courseData.materis &&
+             this.courseData.materis.length > 0 &&
+             this.completedMateris.length === this.courseData.materis.length;
     }
   },
   data() {
@@ -201,18 +232,41 @@ export default {
       courseData: {
         courseDescription: null,
         materis: [],
-        totalMateris: 0
+        totalMateris: 0,
+        course_stats: null
       },
       currentMateri: null,
       completedMateris: [], // Array of completed material slugs
     };
   },
   async mounted() {
-    console.log('Course Description ID:', this.courseDescriptionId);
+    console.log('🎯 CourseContent mounted - Course Description ID:', this.courseDescriptionId);
     await this.loadCourseContent();
     this.loadProgress();
+    this.setupProgressListener();
+  },
+  beforeUnmount() {
+    // Clean up event listeners
+    window.removeEventListener('courseProgressUpdated', this.handleProgressUpdate);
   },
   methods: {
+    // ===== SETUP PROGRESS LISTENER =====
+    setupProgressListener() {
+      // Listen for progress updates from dashboard or other components
+      window.addEventListener('courseProgressUpdated', this.handleProgressUpdate);
+    },
+
+    handleProgressUpdate(event) {
+      const { courseId, progress } = event.detail;
+      if (courseId == this.courseDescriptionId) {
+        console.log('📡 Received progress update from external source:', progress);
+        if (progress.completedMateris) {
+          this.completedMateris = progress.completedMateris;
+        }
+      }
+    },
+
+    // ===== ENHANCED COURSE LOADING =====
     async loadCourseContent() {
       try {
         this.loading = true;
@@ -224,12 +278,12 @@ export default {
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         }
 
-        console.log('Loading course content for ID:', this.courseDescriptionId);
+        console.log('🔍 Loading course content for ID:', this.courseDescriptionId);
 
-        // Use the correct API endpoint with the actual course ID from route
+        // Use the enhanced API endpoint
         const response = await axios.get(`http://localhost:8000/api/course-content/course/${this.courseDescriptionId}`);
 
-        console.log('Course content response:', response.data);
+        console.log('📡 Course content response:', response.data);
 
         if (response.data.success) {
           this.courseData = response.data.data;
@@ -244,13 +298,23 @@ export default {
             this.currentMateri = this.courseData.materis[0];
           }
 
-          console.log('Course data loaded successfully:', this.courseData);
+          // Enhanced logging
+          console.log('✅ Course data loaded successfully:', {
+            title: this.courseData.courseDescription?.title,
+            totalMateris: this.courseData.totalMateris,
+            materialsSource: this.courseData.course_stats?.materials_source,
+            hasContent: this.courseData.course_stats?.has_content
+          });
+
+          // Notify dashboard about course structure
+          this.notifyDashboardCourseStructure();
+
         } else {
           throw new Error(response.data.message || 'Gagal memuat data course');
         }
 
       } catch (error) {
-        console.error('Error loading course content:', error);
+        console.error('❌ Error loading course content:', error);
 
         if (error.response?.status === 404) {
           this.error = 'Course tidak ditemukan atau Anda tidak memiliki akses ke course ini.';
@@ -271,137 +335,277 @@ export default {
       }
     },
 
+    // ===== NOTIFY DASHBOARD ABOUT COURSE STRUCTURE =====
+    notifyDashboardCourseStructure() {
+      const courseStructure = {
+        courseId: this.courseDescriptionId,
+        title: this.courseData.courseDescription?.title,
+        totalMaterials: this.courseData.totalMateris,
+        hasContent: this.courseData.course_stats?.has_content,
+        materialsSource: this.courseData.course_stats?.materials_source
+      };
+
+      // Broadcast course structure to dashboard
+      window.dispatchEvent(new CustomEvent('courseStructureLoaded', {
+        detail: courseStructure
+      }));
+
+      console.log('📡 Course structure broadcasted to dashboard:', courseStructure);
+    },
+
+    // ===== ENHANCED MATERIAL SELECTION =====
     selectMateri(materi) {
       if (!materi) return;
 
       this.currentMateri = materi;
       this.saveProgress();
 
+      // Log material selection
+      console.log('📖 Selected material:', {
+        title: materi.judul,
+        order: materi.urutan,
+        slug: materi.slug
+      });
+
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
 
+    // ===== ENHANCED PROGRESS SAVING =====
+    saveProgress() {
+      const courseId = this.courseDescriptionId;
+      const progressKey = `course_progress_${courseId}`;
 
-   saveProgress() {
-    // PERBAIKAN: Pastikan ID konsisten
-    const courseId = this.courseDescriptionId;
-    const progressKey = `course_progress_${courseId}`;
-
-    const progressData = {
+      const progressData = {
         completedMateris: this.completedMateris,
         currentMateri: this.currentMateri?.slug || null,
         lastUpdated: new Date().toISOString(),
-        // TAMBAHAN: Data untuk kompatibilitas dengan Dashboard
+        // Enhanced data for dashboard integration
         course_id: courseId,
-        total_materials: this.courseData.materis?.length || 0,
-        completed_count: this.completedMateris.length
-    };
+        course_title: this.courseData.courseDescription?.title,
+        total_materials: this.courseData.totalMateris || 0,
+        completed_count: this.completedMateris.length,
+        progress_percentage: this.progress,
+        materials_source: this.courseData.course_stats?.materials_source || 'unknown'
+      };
 
-    try {
+      try {
         localStorage.setItem(progressKey, JSON.stringify(progressData));
 
-        // TAMBAHAN: Trigger event untuk notify Dashboard jika ada
+        // Enhanced dashboard notification
         window.dispatchEvent(new CustomEvent('courseProgressUpdated', {
-            detail: {
-                courseId: courseId,
-                progress: progressData
-            }
+          detail: {
+            courseId: courseId,
+            progress: progressData,
+            timestamp: new Date().toISOString()
+          }
         }));
 
-        console.log('Progress saved:', progressData);
-    } catch (error) {
-        console.error('Error saving progress:', error);
-    }
-},
+        // Also send to dashboard sync event
+        window.dispatchEvent(new CustomEvent('courseProgressSync', {
+          detail: {
+            courseId: courseId,
+            completed: this.completedMateris.length,
+            total: this.courseData.totalMateris || 0,
+            percentage: this.progress,
+            completedMateris: this.completedMateris,
+            courseTitle: this.courseData.courseDescription?.title,
+            lastAccessed: new Date().toISOString()
+          }
+        }));
 
+        console.log('💾 Enhanced progress saved and broadcasted:', progressData);
+      } catch (error) {
+        console.error('❌ Error saving progress:', error);
+      }
+    },
 
+    // ===== ENHANCED PROGRESS LOADING =====
+    loadProgress() {
+      const courseId = this.courseDescriptionId;
+      const progressKey = `course_progress_${courseId}`;
 
-loadProgress() {
-    const courseId = this.courseDescriptionId;
-    const progressKey = `course_progress_${courseId}`;
-
-    try {
+      try {
         const savedProgress = localStorage.getItem(progressKey);
         if (savedProgress) {
-            const progressData = JSON.parse(savedProgress);
-            this.completedMateris = progressData.completedMateris || [];
+          const progressData = JSON.parse(savedProgress);
+          this.completedMateris = progressData.completedMateris || [];
 
-            // Restore current material if saved and materials are loaded
-            if (progressData.currentMateri && this.courseData.materis && this.courseData.materis.length > 0) {
-                const savedMateri = this.courseData.materis.find(m => m.slug === progressData.currentMateri);
-                if (savedMateri) {
-                    this.currentMateri = savedMateri;
-                }
+          // Restore current material if saved and materials are loaded
+          if (progressData.currentMateri && this.courseData.materis && this.courseData.materis.length > 0) {
+            const savedMateri = this.courseData.materis.find(m => m.slug === progressData.currentMateri);
+            if (savedMateri) {
+              this.currentMateri = savedMateri;
             }
+          }
 
-            console.log('Progress loaded:', progressData);
+          console.log('📚 Progress loaded:', {
+            completed: this.completedMateris.length,
+            total: this.courseData.totalMateris,
+            percentage: Math.round(this.progress),
+            lastUpdated: progressData.lastUpdated
+          });
+
+          // Notify dashboard immediately about loaded progress
+          this.saveProgress();
         }
-    } catch (error) {
-        console.error('Error loading progress:', error);
-    }
-},
-toggleComplete() {
-    if (!this.currentMateri) return;
+      } catch (error) {
+        console.error('❌ Error loading progress:', error);
+      }
+    },
 
-    const slug = this.currentMateri.slug;
-    const index = this.completedMateris.indexOf(slug);
+    // ===== ENHANCED COMPLETION TOGGLE =====
+    toggleComplete() {
+      if (!this.currentMateri) return;
 
-    if (index > -1) {
+      const slug = this.currentMateri.slug;
+      const index = this.completedMateris.indexOf(slug);
+
+      if (index > -1) {
         // Remove from completed
         this.completedMateris.splice(index, 1);
-    } else {
+        console.log('❌ Material unmarked as completed:', this.currentMateri.judul);
+      } else {
         // Add to completed
         this.completedMateris.push(slug);
+        console.log('✅ Material marked as completed:', this.currentMateri.judul);
 
-        // TAMBAHAN: Show completion feedback
+        // Visual feedback
         this.$nextTick(() => {
-            // Scroll ke tombol untuk visual feedback
-            const button = event.target;
-            if (button) {
-                button.style.transform = 'scale(1.05)';
-                setTimeout(() => {
-                    button.style.transform = 'scale(1)';
-                }, 200);
-            }
+          const button = event.target;
+          if (button) {
+            button.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+              button.style.transform = 'scale(1)';
+            }, 200);
+          }
         });
 
-        // Auto-navigate to next material if available
-        if (this.nextMateri) {
-            setTimeout(() => {
-                this.selectMateri(this.nextMateri);
-            }, 800); // Increased delay untuk better UX
+        // Auto-navigate to next material if available and not at the end
+        if (this.nextMateri && !this.isCourseCompleted) {
+          setTimeout(() => {
+            this.selectMateri(this.nextMateri);
+          }, 800);
         }
-    }
 
-    // PERBAIKAN: Save progress setelah update
-    this.saveProgress();
+        // Check if course is completed
+        if (this.isCourseCompleted) {
+          this.celebrateCompletion();
+        }
+      }
 
-    // TAMBAHAN: Log untuk debugging
-    console.log(`📝 Material ${this.isCurrentMateriCompleted ? 'completed' : 'uncompleted'}: ${slug}`);
-    console.log(`📊 Total completed: ${this.completedMateris.length}/${this.courseData.materis?.length || 0}`);
-},
+      // Save progress after update
+      this.saveProgress();
 
-// TAMBAHAN: Method untuk manual sync dengan Dashboard
-syncProgressWithDashboard() {
-    const progressData = {
-        courseId: this.courseDescriptionId,
+      // Enhanced logging
+      console.log('📊 Progress updated:', {
         completed: this.completedMateris.length,
-        total: this.courseData.materis?.length || 0,
-        percentage: this.progress,
-        completedMateris: this.completedMateris
-    };
+        total: this.courseData.totalMateris,
+        percentage: Math.round(this.progress),
+        courseCompleted: this.isCourseCompleted
+      });
+    },
 
-    // Broadcast event
-    window.dispatchEvent(new CustomEvent('courseProgressSync', {
-        detail: progressData
-    }));
+    // ===== COURSE COMPLETION CELEBRATION =====
+    celebrateCompletion() {
+      console.log('🎉 Course completed! Triggering celebration...');
 
-    console.log('🔄 Progress synced with Dashboard:', progressData);
-},
+      // Trigger celebration animation
+      setTimeout(() => {
+        // Scroll to completion message
+        const completionElement = document.querySelector('.bg-gradient-to-r.from-green-100');
+        if (completionElement) {
+          completionElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 1000);
 
+      // Notify dashboard about course completion
+      window.dispatchEvent(new CustomEvent('courseCompleted', {
+        detail: {
+          courseId: this.courseDescriptionId,
+          courseTitle: this.courseData.courseDescription?.title,
+          completedAt: new Date().toISOString(),
+          totalMaterials: this.courseData.totalMateris
+        }
+      }));
+
+      // Update user achievements
+      this.updateAchievements();
+    },
+
+    // ===== UPDATE ACHIEVEMENTS =====
+    updateAchievements() {
+      try {
+        let achievements = JSON.parse(localStorage.getItem('user_achievements') || '[]');
+
+        const completionAchievement = {
+          id: `course_${this.courseDescriptionId}_completed`,
+          type: 'course_completion',
+          courseId: this.courseDescriptionId,
+          courseTitle: this.courseData.courseDescription?.title,
+          completedAt: new Date().toISOString(),
+          badge: '🎓',
+          title: 'Course Completed',
+          description: `Menyelesaikan course "${this.courseData.courseDescription?.title}"`
+        };
+
+        achievements.push(completionAchievement);
+        localStorage.setItem('user_achievements', JSON.stringify(achievements));
+
+        console.log('🏆 Achievement unlocked:', completionAchievement);
+      } catch (error) {
+        console.error('❌ Error updating achievements:', error);
+      }
+    },
+
+    // ===== RETRY LOAD =====
     async retryLoad() {
       await this.loadCourseContent();
       this.loadProgress();
+    },
+
+    // ===== FORMAT DATE =====
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    }
+  },
+
+  // ===== WATCHERS =====
+  watch: {
+    // Watch for course data changes
+    'courseData.materis': {
+      handler(newMateris) {
+        if (newMateris && newMateris.length > 0 && !this.currentMateri) {
+          this.currentMateri = newMateris[0];
+          console.log('🎯 Auto-selected first material:', this.currentMateri.judul);
+        }
+        // Notify dashboard about materials structure change
+        this.notifyDashboardCourseStructure();
+      },
+      deep: true
+    },
+
+    // Watch for progress changes
+    completedMateris: {
+      handler(newCompleted, oldCompleted) {
+        if (newCompleted.length !== oldCompleted.length) {
+          console.log('📈 Progress changed:', {
+            from: oldCompleted.length,
+            to: newCompleted.length,
+            total: this.courseData.totalMateris
+          });
+        }
+      },
+      deep: true
     }
   }
 };
@@ -531,5 +735,19 @@ syncProgressWithDashboard() {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Celebration animation */
+@keyframes celebrate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.celebration {
+  animation: celebrate 0.6s ease-in-out;
 }
 </style>

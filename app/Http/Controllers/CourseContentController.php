@@ -11,6 +11,10 @@ use Exception;
 
 class CourseContentController extends Controller
 {
+    /**
+     * Get course content by course description ID
+     * Enhanced with better progress tracking and material count from CourseDescriptions
+     */
     public function getByCourseDescription($courseDescriptionId): JsonResponse
     {
         try {
@@ -29,7 +33,7 @@ class CourseContentController extends Controller
 
             $courseDescriptionId = (int) $courseDescriptionId;
 
-            // Find course description
+            // Find course description with more details
             $courseDescription = CourseDescriptions::find($courseDescriptionId);
 
             if (!$courseDescription) {
@@ -63,7 +67,9 @@ class CourseContentController extends Controller
             ]);
 
             $materis = [];
+            $totalMaterisFromCourseDescription = 0;
 
+            // First, try to get materials from CourseContent JSON
             if ($courseContent && is_array($courseContent->materials)) {
                 // Extract materials from JSON and format them
                 $materis = collect($courseContent->materials)
@@ -82,32 +88,74 @@ class CourseContentController extends Controller
                     ->values();
             }
 
-            // Prepare response
+            // If no materials in CourseContent, get count from CourseDescriptions
+            if ($materis->isEmpty()) {
+                // Try to get material count from course_description fields
+                $totalMaterisFromCourseDescription = $courseDescription->video_count ??
+                                                   $courseDescription->total_materials ??
+                                                   $courseDescription->material_count ?? 0;
+
+                // Generate placeholder materials based on course description
+                if ($totalMaterisFromCourseDescription > 0) {
+                    for ($i = 1; $i <= $totalMaterisFromCourseDescription; $i++) {
+                        $materis[] = [
+                            'id' => $i,
+                            'slug' => 'course-' . $courseDescriptionId . '-materi-' . $i,
+                            'judul' => 'Materi ' . $i . ' - ' . $courseDescription->title,
+                            'konten' => '<p>Materi ini akan segera tersedia. Silakan tunggu update dari instruktur.</p>',
+                            'urutan' => $i,
+                            'course_title' => $courseDescription->title,
+                            'course_description_id' => $courseDescriptionId
+                        ];
+                    }
+                    $materis = collect($materis);
+                }
+            }
+
+            // Calculate actual total materials
+            $actualTotal = max($materis->count(), $totalMaterisFromCourseDescription);
+
+            // Enhanced course description data
+            $courseDescriptionData = [
+                'id' => $courseDescription->id,
+                'title' => $courseDescription->title ?: 'Untitled Course',
+                'description' => $courseDescription->description ?? $courseDescription->overview ?? null,
+                'overview' => $courseDescription->overview ?? $courseDescription->description ?? null,
+                'instructor' => $courseDescription->instructor ?? $courseDescription->instructor_name ?? 'Unknown Instructor',
+                'instructor_name' => $courseDescription->instructor_name ?? $courseDescription->instructor ?? 'Unknown Instructor',
+                'duration' => $courseDescription->duration ?? 0,
+                'level' => $courseDescription->level ?? 'beginner',
+                'price' => $courseDescription->price ?? 0,
+                'price_discount' => $courseDescription->price_discount ?? null,
+                'thumbnail' => $courseDescription->thumbnail ?? $courseDescription->image_url ?? null,
+                'image_url' => $courseDescription->image_url ?? $courseDescription->thumbnail ?? null,
+                'is_active' => $courseDescription->is_active ?? true,
+                'video_count' => $courseDescription->video_count ?? $actualTotal,
+                'total_materials' => $actualTotal,
+                'tag' => $courseDescription->tag ?? null
+            ];
+
+            // Prepare response with enhanced data
             $response = [
                 'success' => true,
                 'data' => [
-                    'courseDescription' => [
-                        'id' => $courseDescription->id,
-                        'title' => $courseDescription->title ?: 'Untitled Course',
-                        'description' => $courseDescription->description ?? null,
-                        'overview' => $courseDescription->description ?? null, // Add both for compatibility
-                        'instructor' => $courseDescription->instructor ?? 'Unknown Instructor',
-                        'instructor_name' => $courseDescription->instructor ?? 'Unknown Instructor',
-                        'duration' => $courseDescription->duration ?? 0,
-                        'level' => $courseDescription->level ?? 'beginner',
-                        'price' => $courseDescription->price ?? 0,
-                        'thumbnail' => $courseDescription->thumbnail ?? null,
-                        'is_active' => $courseDescription->is_active ?? true
-                    ],
+                    'courseDescription' => $courseDescriptionData,
                     'materis' => $materis,
-                    'totalMateris' => $materis->count()
+                    'totalMateris' => $actualTotal,
+                    // Enhanced for dashboard integration
+                    'course_stats' => [
+                        'total_materials' => $actualTotal,
+                        'has_content' => $courseContent ? true : false,
+                        'materials_source' => $courseContent ? 'course_content' : 'course_description'
+                    ]
                 ],
                 'message' => 'Data berhasil dimuat'
             ];
 
             Log::info('Response prepared successfully', [
                 'course_title' => $courseDescription->title,
-                'materis_count' => $materis->count()
+                'materis_count' => $actualTotal,
+                'materials_source' => $courseContent ? 'course_content' : 'course_description'
             ]);
 
             return response()->json($response);
@@ -126,6 +174,119 @@ class CourseContentController extends Controller
         }
     }
 
+    /**
+     * Enhanced search method for better material discovery
+     */
+    public function search(Request $request): JsonResponse
+    {
+        try {
+            $query = $request->get('q', '');
+            $courseId = $request->get('course_id');
+
+            $searchQuery = CourseContent::query();
+
+            if ($courseId) {
+                $searchQuery->where('course_description_id', $courseId);
+            }
+
+            $results = $searchQuery->get();
+            $searchResults = collect([]);
+
+            foreach ($results as $courseContent) {
+                if (is_array($courseContent->materials)) {
+                    foreach ($courseContent->materials as $index => $material) {
+                        $judul = $material['judul'] ?? '';
+                        $konten = $material['konten'] ?? '';
+
+                        if (empty($query) ||
+                            stripos($judul, $query) !== false ||
+                            stripos($konten, $query) !== false) {
+
+                            $searchResults->push([
+                                'id' => $index + 1,
+                                'slug' => $courseContent->slug . '-materi-' . ($material['urutan'] ?? ($index + 1)),
+                                'judul' => $judul ?: 'Materi ' . ($index + 1),
+                                'urutan' => $material['urutan'] ?? ($index + 1),
+                                'course_description_id' => $courseContent->course_description_id,
+                                'course_title' => $courseContent->course_title,
+                                'snippet' => substr(strip_tags($konten), 0, 150) . '...'
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $searchResults->sortBy('urutan')->values(),
+                'total' => $searchResults->count(),
+                'query' => $query
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error in search: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan pencarian',
+                'error' => app()->environment('local') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * NEW METHOD: Get progress statistics for dashboard integration
+     */
+    public function getProgressStats($courseDescriptionId): JsonResponse
+    {
+        try {
+            $courseDescriptionId = (int) $courseDescriptionId;
+
+            // Get course description for total materials
+            $courseDescription = CourseDescriptions::find($courseDescriptionId);
+
+            if (!$courseDescription) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Course tidak ditemukan'
+                ], 404);
+            }
+
+            // Get course content
+            $courseContent = CourseContent::where('course_description_id', $courseDescriptionId)->first();
+
+            // Calculate total materials
+            $totalMaterials = 0;
+            if ($courseContent && is_array($courseContent->materials)) {
+                $totalMaterials = count($courseContent->materials);
+            } else {
+                // Fallback to course description fields
+                $totalMaterials = $courseDescription->video_count ??
+                                $courseDescription->total_materials ??
+                                $courseDescription->material_count ?? 0;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'course_id' => $courseDescriptionId,
+                    'course_title' => $courseDescription->title,
+                    'total_materials' => $totalMaterials,
+                    'has_content' => $courseContent ? true : false,
+                    'materials_source' => $courseContent ? 'course_content' : 'course_description'
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error in getProgressStats: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memuat statistik progress',
+                'error' => app()->environment('local') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    // Keep existing methods unchanged
     public function getBySlug($slug): JsonResponse
     {
         try {
@@ -227,6 +388,20 @@ class CourseContentController extends Controller
                     })
                     ->sortBy('urutan')
                     ->values();
+            } else {
+                // Generate navigation from course description
+                $totalMaterials = $courseDescription->video_count ??
+                                $courseDescription->total_materials ??
+                                $courseDescription->material_count ?? 0;
+
+                for ($i = 1; $i <= $totalMaterials; $i++) {
+                    $navigation->push([
+                        'id' => $i,
+                        'slug' => 'course-' . $courseDescriptionId . '-materi-' . $i,
+                        'judul' => 'Materi ' . $i . ' - ' . $courseDescription->title,
+                        'urutan' => $i
+                    ]);
+                }
             }
 
             return response()->json([
@@ -353,62 +528,4 @@ class CourseContentController extends Controller
             ], 500);
         }
     }
-
-    public function search(Request $request): JsonResponse
-    {
-        try {
-            $query = $request->get('q', '');
-            $courseId = $request->get('course_id');
-
-            $searchQuery = CourseContent::query();
-
-            if ($courseId) {
-                $searchQuery->where('course_description_id', $courseId);
-            }
-
-            $results = $searchQuery->get();
-
-            $searchResults = collect([]);
-
-            foreach ($results as $courseContent) {
-                if (is_array($courseContent->materials)) {
-                    foreach ($courseContent->materials as $index => $material) {
-                        $judul = $material['judul'] ?? '';
-                        $konten = $material['konten'] ?? '';
-
-                        if (empty($query) ||
-                            stripos($judul, $query) !== false ||
-                            stripos($konten, $query) !== false) {
-
-                            $searchResults->push([
-                                'id' => $index + 1,
-                                'slug' => $courseContent->slug . '-materi-' . ($material['urutan'] ?? ($index + 1)),
-                                'judul' => $judul ?: 'Materi ' . ($index + 1),
-                                'urutan' => $material['urutan'] ?? ($index + 1),
-                                'course_description_id' => $courseContent->course_description_id,
-                                'course_title' => $courseContent->course_title,
-                                'snippet' => substr(strip_tags($konten), 0, 150) . '...'
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $searchResults->sortBy('urutan')->values(),
-                'total' => $searchResults->count(),
-                'query' => $query
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Error in search: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal melakukan pencarian',
-                'error' => app()->environment('local') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
 }
-
